@@ -119,8 +119,9 @@ expr = mdo
             <$> (match Lexer.Do *> expr)
             <*> (match Lexer.OpenBrace *> many bind)
             <*> (bind <* match Lexer.CloseBrace)
-        <|> match Lexer.Nat *> pure Nat
+        <|> match Lexer.Nat  *> pure Nat
         <|> match Lexer.List *> pure List
+        <|> match Lexer.Cmd  *> pure Cmd
         <|> match Lexer.Path *> pure Path
         <|> (match Lexer.OpenParen *> expr <* match Lexer.CloseParen)
         )

@@ -70,6 +70,7 @@ tokens :-
     "do"                            { \_    -> yield Do                        }
     "#Nat"                          { \_    -> yield Nat                       }
     "#List"                         { \_    -> yield List                      }
+    "#Cmd"                          { \_    -> yield Cmd                       }
     "#Path"                         { \_    -> yield Path                      }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
@@ -203,6 +204,7 @@ data Token
     | Do
     | Nat
     | List
+    | Cmd
     | Path
     | Label Text
     | Number Int

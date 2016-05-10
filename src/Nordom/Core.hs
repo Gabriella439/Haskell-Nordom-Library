@@ -203,6 +203,8 @@ data Expr a
     | Path
     -- | > Do m [b1, b2] b3                ~  do m { b1 b2 b3 }
     | Do (Expr a) [Bind a] (Bind a)
+    -- | > Cmd                             ~  #Cmd
+    | Cmd
     | Embed a
     deriving (Functor, Foldable, Traversable, Show)
 
@@ -236,6 +238,7 @@ instance Applicative Expr where
                 return (Bind (Arg x (_A <*> mx)) (r <*> mx))
             Bind (Arg x0 _A0) r0 = b0
             b0' = Bind (Arg x0 (_A0 <*> mx)) (r0 <*> mx)
+        Cmd               -> Cmd
         Embed f           -> fmap f mx
 
 instance Monad Expr where
@@ -268,6 +271,7 @@ instance Monad Expr where
                 return (Bind (Arg x (_A >>= k)) (r >>= k))
             Bind (Arg x0 _A0) r0 = b0
             b0' = Bind (Arg x0 (_A0 >>= k)) (r0 >>= k)
+        Cmd               -> Cmd
         Embed r           -> k r
 
 match :: Text -> Int -> Text -> Int -> [(Text, Text)] -> Bool
@@ -356,6 +360,7 @@ instance Eq a => Eq (Expr a) where
             b3b <- if b3a then go rL rR     else return False
             State.put ctx
             return b3b
+        go Cmd Cmd = return False
         go (Embed pL) (Embed pR) = return (pL == pR)
         go _ _ = return False
 
@@ -413,6 +418,7 @@ instance Buildable a => Buildable (Expr a)
                 <>  mconcat (map build bs)
                 <>  build b0
                 <>  " }"
+            Cmd               -> "#Cmd"
             Embed p           -> build p
 
 shift :: Int -> Var -> Expr a -> Expr a
@@ -469,6 +475,7 @@ shift d ! v0     (Do m bs0 b0      ) = Do m' bs0' b0'
     l0'        = Arg x0 _A0'
     r0'        = shift d v0' r0
     b0'        = Bind l0' r0'
+shift _ ! _       Cmd                = Cmd
 -- The Nordom compiler enforces that all embedded values are closed expressions
 shift _ ! _      (Embed p          ) = Embed p
 
@@ -528,6 +535,7 @@ subst ! v0     e0 (Do m bs0 b0      ) = Do m' bs0' b0'
     l0'        = Arg x0 _A0'
     r0'        = subst v0' e0' r0
     b0'        = Bind l0' r0'
+subst ! _      _   Cmd                = Cmd
 -- The Nordom compiler enforces that all embedded values are closed expressions
 subst ! _      _  (Embed p          ) = Embed p
 
@@ -574,6 +582,7 @@ freeIn ! v0     (Do m bs0 b       ) = freeIn v0 m || go v0 bs0
     go  v         []                    = freeIn v _A || freeIn v r
       where
         Bind (Arg _ _A) r = b
+freeIn ! _       Cmd                = False
 freeIn ! _      (Embed _          ) = False
 
 -- | Normalize a Nordom expression
@@ -620,6 +629,7 @@ normalize e = case e of
             return (Bind (Arg x (normalize _A)) (normalize r))
         Bind (Arg x0 _A0) r0 = b0
         b0' = Bind (Arg x0 (normalize _A0)) (normalize r0)
+    Cmd               -> Cmd
     Embed p           -> Embed p
 
 {-| Type-check an expression and return the expression's type if type-checking
@@ -738,6 +748,35 @@ typeWith ctx e = case e of
     Path              -> do
         let k = Pi "_" (Const Star) (Pi "_" (Const Star) (Const Star))
         return (Pi "_" k k)
+    Do m bs0 b0       -> do
+        k <- typeWith ctx m
+        if k == Pi "_" (Const Star) (Const Star)
+            then return ()
+            else Left (TypeError ctx e (InvalidCmdType m k))
+        -- This check is necessary to ensure that `Do` obeys the exact same
+        -- typing rules as the equivalent Boehm-Berarducci encoding.
+        let check c1 c2 = case rule c1 c2 of
+                Left  _ -> Left (TypeError ctx e (CmdsUnsupported c1 c2))
+                Right _ -> return ()
+        check Star Star
+        check Box  Star
+        let loop !n (b@(Bind a@(Arg x _A) r):bs) ctx' = do
+                _AT <- typeWith ctx' _A
+                if _AT == Const Star
+                    then return ()
+                    else Left (TypeError ctx e (InvalidReturnType n a _AT))
+                let t = App m _A
+                t' <- typeWith ctx' r
+                if t == t'
+                    then return ()
+                    else Left (TypeError ctx e (InvalidAction n b t t'))
+                loop (n + 1) bs (Context.insert x _A ctx')
+            loop _ [] _    = return ()
+        loop 0 (bs0 ++ [b0]) ctx
+        return (App (App Cmd m) (argType (bindLhs b0)))
+    Cmd               -> do
+        let k = Pi "_" (Const Star) (Const Star)
+        return (Pi "_" k k)
     Embed p           -> absurd p
 
 {-| `typeOf` is the same as `typeWith` with an empty context, meaning that the
@@ -758,8 +797,12 @@ data TypeMessage
     | InvalidListType (Expr X) (Expr X)
     | ListsUnsupported Const Const
     | InvalidElement Integer (Expr X) (Expr X) (Expr X)
-    | PathsUnsupported Const Const
+    | InvalidCmdType (Expr X) (Expr X) 
+    | CmdsUnsupported Const Const
+    | InvalidAction Integer (Bind X) (Expr X) (Expr X)
+    | InvalidReturnType Integer (Arg X) (Expr X)
     | InvalidPathType (Expr X) (Expr X)
+    | PathsUnsupported Const Const
     | InvalidStep Integer (Expr X) (Expr X) (Expr X) (Expr X) (Expr X)
     | InvalidStop Integer (Expr X) (Expr X)
     deriving (Show)
@@ -806,6 +849,45 @@ instance Buildable TypeMessage where
             <>  "\n"
             <>  "Expected type: " <> build t  <> "\n"
             <>  "Actual   type: " <> build t' <> "\n"
+        InvalidCmdType m mT                ->
+                "Error: Type constructor of the wrong kind for cmd actions\n"
+            <>  "\n"
+            <>  "Invalid type constructor: do " <> build m <> " { ...\n"
+            <>  "                             ^\n"
+            <>  "Expected kind: * → *\n"
+            <>  "Actual   kind: " <> build mT <> "\n"
+        CmdsUnsupported const1 const2      ->
+                "Error: The current type checker rules forbid cmds\n"
+            <>  "\n"
+            <>  "Forbidden rule: ⊦ " <> build const1 <> " ↝ " <> build const2 <> "\n"
+            <>  "\n"
+            <>  "Suggestion: Use an official release of Nordom.  This problem most likely means that you are using a modified version of Nordom.\n"
+        InvalidAction n (Bind l r) t t'    ->
+                "Error: Command with an action of the wrong type\n"
+            <>  "\n"
+            <>  "Action index  : " <> build n <> "\n"
+            <>  prefix0 <> build r <> "\n"
+            <>  prefix1 <> "^\n"
+            <>  "Expected type : " <> build t <> "\n"
+            <>  "Actual   type : " <> build t' <> "\n"
+          where
+            prefix0 = "Invalid action: " <> build l <> " <- "
+            offset  = Text.length (Builder.toLazyText prefix0)
+            prefix1 =
+                Builder.fromLazyText (Text.replicate offset " ")
+        InvalidReturnType n (Arg x _A) _AT ->
+                "Error: Action with a return type of the wrong kind\n"
+            <>  "\n"
+            <>  "Action index  : " <> build n <> "\n"
+            <>  prefix0 <> build _A <> " <- ...\n"
+            <>  prefix1 <> "^\n"
+            <>  "Expected kind: *\n"
+            <>  "Actual   kind: " <> build _AT <> "\n"
+          where
+            prefix0 = "Invalid action: " <> build x <> " : "
+            offset  = Text.length (Builder.toLazyText prefix0)
+            prefix1 =
+                Builder.fromLazyText (Text.replicate offset " ")
         InvalidPathType cat catT           ->
                 "Error: Type constructor of the wrong kind for path steps\n"
             <>  "\n"
