@@ -75,6 +75,7 @@ tokens :-
     "#Nat/(+)"                      { \_    -> yield NatPlus                   }
     "#Nat/(*)"                      { \_    -> yield NatTimes                  }
     "#List/(++)"                    { \_    -> yield ListAppend                }
+    "#List/drop"                    { \_    -> yield ListDrop                  }
     "#List/enum"                    { \_    -> yield ListEnum                  }
     "#List/fold"                    { \_    -> yield ListFold                  }
     "#List/head"                    { \_    -> yield ListHead                  }
@@ -216,6 +217,7 @@ data Token
     | NatTimes
     | List
     | ListAppend
+    | ListDrop
     | ListEnum
     | ListFold
     | ListHead

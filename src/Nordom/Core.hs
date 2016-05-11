@@ -205,6 +205,8 @@ data Expr a
     | List
     -- | > ListAppend                      ~  #List/append
     | ListAppend
+    -- | > ListDrop                        ~  #List/drop
+    | ListDrop
     -- | > ListEnum                        ~  #List/enum
     | ListEnum
     -- | > ListFold                        ~  #List/fold
@@ -248,6 +250,7 @@ instance Applicative Expr where
                 return (e <*> mx)
         List              -> List
         ListAppend        -> ListAppend
+        ListDrop          -> ListDrop
         ListEnum          -> ListEnum
         ListFold          -> ListFold
         ListHead          -> ListHead
@@ -290,6 +293,7 @@ instance Monad Expr where
                 return (e >>= k)
         List              -> List
         ListAppend        -> ListAppend
+        ListDrop          -> ListDrop
         ListEnum          -> ListEnum
         ListFold          -> ListFold
         ListHead          -> ListHead
@@ -363,6 +367,7 @@ instance Eq a => Eq (Expr a) where
                 else return False
         go List List = return True
         go ListAppend ListAppend = return True
+        go ListDrop ListDrop = return True
         go ListEnum ListEnum = return True
         go ListFold ListFold = return True
         go ListHead ListHead = return True
@@ -451,6 +456,7 @@ instance Buildable a => Buildable (Expr a)
                 <>  "]"
             List              -> "#List"
             ListAppend        -> "#List/(++)"
+            ListDrop          -> "#List/drop"
             ListEnum          -> "#List/enum"
             ListFold          -> "#List/fold"
             ListHead          -> "#List/head"
@@ -503,6 +509,7 @@ shift d ! v      (ListLit t es     ) = ListLit t' es'
     es' = Vector.map (shift d v) es
 shift _ ! _       List               = List
 shift _ ! _       ListAppend         = ListAppend
+shift _ ! _       ListDrop           = ListDrop
 shift _ ! _       ListEnum           = ListEnum
 shift _ ! _       ListFold           = ListFold
 shift _ ! _       ListHead           = ListHead
@@ -572,6 +579,7 @@ subst ! v      e  (ListLit t es     ) = ListLit t' es'
     es' = Vector.map (subst v e) es
 subst ! _      _   List               = List
 subst ! _      _   ListAppend         = ListAppend
+subst ! _      _   ListDrop           = ListDrop
 subst ! _      _   ListEnum           = ListEnum
 subst ! _      _   ListFold           = ListFold
 subst ! _      _   ListHead           = ListHead
@@ -641,6 +649,7 @@ freeIn ! _       NatTimes           = False
 freeIn ! v      (ListLit t es     ) = freeIn v t || any (freeIn v) es
 freeIn ! _       List               = False
 freeIn ! _       ListAppend         = False
+freeIn ! _       ListDrop           = False
 freeIn ! _       ListEnum           = False
 freeIn ! _       ListFold           = False
 freeIn ! _       ListHead           = False
@@ -697,6 +706,8 @@ normalize e = case e of
                 NatLit (m * n)
             App (App (App ListAppend t) (ListLit _ xs)) (ListLit _ ys) ->
                 normalize (ListLit t ((Vector.++) xs ys))
+            App (App (App ListDrop (NatLit n)) t) (ListLit _ xs) ->
+                normalize (ListLit t (Vector.drop (fromIntegral n) xs))
             App ListEnum (NatLit n) ->
                 ListLit Nat (Vector.generate (fromIntegral n) (NatLit . fromIntegral))
             App (App (App (App ListFold _) (ListLit _ es)) p) z ->
@@ -740,6 +751,7 @@ normalize e = case e of
     ListLit t es      -> ListLit (normalize t) (Vector.map normalize es)
     List              -> List
     ListAppend        -> ListAppend
+    ListDrop          -> ListDrop
     ListEnum          -> ListEnum
     ListFold          -> ListFold
     ListHead          -> ListHead
@@ -830,6 +842,11 @@ typeWith ctx e = case e of
         return
             (Pi "a" (Const Star)
                 (Pi "_" (App List "a")
+                    (Pi "_" (App List "a") (App List "a")) ) )
+    ListDrop          ->
+        return
+            (Pi "_" Nat
+                (Pi "a" (Const Star)
                     (Pi "_" (App List "a") (App List "a")) ) )
     ListEnum          -> return (Pi "_" Nat (App List Nat))
     ListFold          ->
