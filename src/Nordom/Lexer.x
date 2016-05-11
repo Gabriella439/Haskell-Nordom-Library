@@ -74,6 +74,7 @@ tokens :-
     "#Path"                         { \_    -> yield Path                      }
     "#Nat/(+)"                      { \_    -> yield NatPlus                   }
     "#Nat/(*)"                      { \_    -> yield NatTimes                  }
+    "#List/(++)"                    { \_    -> yield ListAppend                }
     "#List/enum"                    { \_    -> yield ListEnum                  }
     "#List/fold"                    { \_    -> yield ListFold                  }
     "#List/map"                     { \_    -> yield ListMap                   }
@@ -211,6 +212,7 @@ data Token
     | NatPlus
     | NatTimes
     | List
+    | ListAppend
     | ListEnum
     | ListFold
     | ListMap

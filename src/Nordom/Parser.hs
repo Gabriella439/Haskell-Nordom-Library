@@ -120,15 +120,16 @@ expr = mdo
             <$> (match Lexer.Do *> expr)
             <*> (match Lexer.OpenBrace *> many bind)
             <*> (bind <* match Lexer.CloseBrace)
-        <|> match Lexer.Nat      *> pure Nat
-        <|> match Lexer.NatPlus  *> pure NatPlus
-        <|> match Lexer.NatTimes *> pure NatTimes
-        <|> match Lexer.List     *> pure List
-        <|> match Lexer.ListEnum *> pure ListEnum
-        <|> match Lexer.ListFold *> pure ListFold
-        <|> match Lexer.ListMap  *> pure ListMap
-        <|> match Lexer.Cmd      *> pure Cmd
-        <|> match Lexer.Path     *> pure Path
+        <|> match Lexer.Nat        *> pure Nat
+        <|> match Lexer.NatPlus    *> pure NatPlus
+        <|> match Lexer.NatTimes   *> pure NatTimes
+        <|> match Lexer.List       *> pure List
+        <|> match Lexer.ListAppend *> pure ListAppend
+        <|> match Lexer.ListEnum   *> pure ListEnum
+        <|> match Lexer.ListFold   *> pure ListFold
+        <|> match Lexer.ListMap    *> pure ListMap
+        <|> match Lexer.Cmd        *> pure Cmd
+        <|> match Lexer.Path       *> pure Path
         <|> (match Lexer.OpenParen *> expr <* match Lexer.CloseParen)
         )
 
