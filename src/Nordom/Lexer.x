@@ -82,6 +82,7 @@ tokens :-
     "#List/last"                    { \_    -> yield ListLast                  }
     "#List/length"                  { \_    -> yield ListLength                }
     "#List/map"                     { \_    -> yield ListMap                   }
+    "#List/take"                    { \_    -> yield ListTake                  }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
     "https://" $nonwhite+           { \text -> yield (URL text)                }
@@ -224,6 +225,7 @@ data Token
     | ListLast
     | ListLength
     | ListMap
+    | ListTake
     | Cmd
     | Path
     | Label Text
