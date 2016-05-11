@@ -192,7 +192,7 @@ data Expr a
     -- | > App f a                         ~  f a
     | App (Expr a) (Expr a)
     -- | > NatLit  n                       ~  n
-    | NatLit !Int
+    | NatLit !Integer
     -- | > Nat                             ~  #Nat
     | Nat
     -- | > NatPlus                         ~  #Nat/(+)
