@@ -209,6 +209,8 @@ data Expr a
     | ListEnum
     -- | > ListFold                        ~  #List/fold
     | ListFold
+    -- | > ListHead                        ~  #List/head
+    | ListHead
     -- | > ListLength                      ~  #List/length
     | ListLength
     -- | > ListMap                         ~  #List/map
@@ -246,6 +248,7 @@ instance Applicative Expr where
         ListAppend        -> ListAppend
         ListEnum          -> ListEnum
         ListFold          -> ListFold
+        ListHead          -> ListHead
         ListLength        -> ListLength
         ListMap           -> ListMap
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
@@ -286,6 +289,7 @@ instance Monad Expr where
         ListAppend        -> ListAppend
         ListEnum          -> ListEnum
         ListFold          -> ListFold
+        ListHead          -> ListHead
         ListLength        -> ListLength
         ListMap           -> ListMap
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
@@ -357,6 +361,7 @@ instance Eq a => Eq (Expr a) where
         go ListAppend ListAppend = return True
         go ListEnum ListEnum = return True
         go ListFold ListFold = return True
+        go ListHead ListHead = return True
         go ListLength ListLength = return True
         go ListMap  ListMap  = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
@@ -443,6 +448,7 @@ instance Buildable a => Buildable (Expr a)
             ListAppend        -> "#List/(++)"
             ListEnum          -> "#List/enum"
             ListFold          -> "#List/fold"
+            ListHead          -> "#List/head"
             ListLength        -> "#List/length"
             ListMap           -> "#List/map"
             PathLit cat ps o0 ->
@@ -493,6 +499,7 @@ shift _ ! _       List               = List
 shift _ ! _       ListAppend         = ListAppend
 shift _ ! _       ListEnum           = ListEnum
 shift _ ! _       ListFold           = ListFold
+shift _ ! _       ListHead           = ListHead
 shift _ ! _       ListLength         = ListLength
 shift _ ! _       ListMap            = ListMap
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
@@ -560,6 +567,7 @@ subst ! _      _   List               = List
 subst ! _      _   ListAppend         = ListAppend
 subst ! _      _   ListEnum           = ListEnum
 subst ! _      _   ListFold           = ListFold
+subst ! _      _   ListHead           = ListHead
 subst ! _      _   ListLength         = ListLength
 subst ! _      _   ListMap            = ListMap
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
@@ -627,6 +635,7 @@ freeIn ! _       List               = False
 freeIn ! _       ListAppend         = False
 freeIn ! _       ListEnum           = False
 freeIn ! _       ListFold           = False
+freeIn ! _       ListHead           = False
 freeIn ! _       ListLength         = False
 freeIn ! _       ListMap            = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
@@ -678,13 +687,24 @@ normalize e = case e of
             App (App NatTimes (NatLit m)) (NatLit n) ->
                 NatLit (m * n)
             App (App (App ListAppend t) (ListLit _ xs)) (ListLit _ ys) ->
-                ListLit t ((Vector.++) xs ys)
+                normalize (ListLit t ((Vector.++) xs ys))
             App ListEnum (NatLit n) ->
                 ListLit Nat (Vector.generate (fromIntegral n) (NatLit . fromIntegral))
             App (App (App (App ListFold _) (ListLit _ es)) p) z ->
-                Vector.foldl' step z es
+                Vector.foldl' step (normalize z) es
               where
                 step x e' = normalize (App (App p x) e')
+            App (App ListHead t) (ListLit _ es) ->
+                Lam "Maybe" (Const Star)
+                    (Lam "Just" (Pi "_" t' "Maybe")
+                        (Lam "Nothing" "Maybe" e') )
+             where
+               t' = normalize t
+               e' =
+                   if Vector.null es
+                   then "Nothing"
+                   else App "Just" (shiftElem (Vector.unsafeHead es))
+               shiftElem = shift 1 "Nothing" . shift 1 "Just"
             App (App ListLength _) (ListLit _ es) ->
                 NatLit (fromIntegral (Vector.length es))
             App (App (App (App ListMap _) b) k) (ListLit _ es) ->
@@ -702,6 +722,7 @@ normalize e = case e of
     ListAppend        -> ListAppend
     ListEnum          -> ListEnum
     ListFold          -> ListFold
+    ListHead          -> ListHead
     ListLength        -> ListLength
     ListMap           -> ListMap
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
@@ -796,6 +817,13 @@ typeWith ctx e = case e of
                 (Pi "_" (App List "m")
                     (Pi "_" (Pi "_" "m" (Pi "_" "m" "m"))
                         (Pi "_" "m" "m") ) ) )
+    ListHead          ->
+        return
+            (Pi "a" (Const Star)
+                (Pi "_" (App List "a")
+                    (Pi "Maybe" (Const Star)
+                        (Pi "Just" (Pi "_" "a" "Maybe")
+                            (Pi "Nothing" "Maybe" "Maybe") ) ) ) )
     ListLength        ->
         return (Pi "a" (Const Star) (Pi "_" (App List "a") Nat))
     ListMap           ->
