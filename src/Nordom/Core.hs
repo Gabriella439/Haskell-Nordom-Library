@@ -197,6 +197,8 @@ data Expr a
     | Nat
     -- | > NatPlus                         ~  #Nat/(+)
     | NatPlus
+    -- | > NatTimes                        ~  #Nat/(*)
+    | NatTimes
     -- | > ListLit t [x, y, z]             ~  [nil t,x,y,z]
     | ListLit (Expr a) (Vector (Expr a))
     -- | > List                            ~  #List
@@ -228,6 +230,7 @@ instance Applicative Expr where
         NatLit n          -> NatLit n
         Nat               -> Nat
         NatPlus           -> NatPlus
+        NatTimes          -> NatTimes
         ListLit t es      -> ListLit (t <*> mx) es'
           where
             es' = do
@@ -264,6 +267,7 @@ instance Monad Expr where
         NatLit n          -> NatLit n
         Nat               -> Nat
         NatPlus           -> NatPlus
+        NatTimes          -> NatTimes
         ListLit t es      -> ListLit (t >>= k) es'
           where
             es' = do
@@ -331,6 +335,7 @@ instance Eq a => Eq (Expr a) where
             return (nL == nR)
         go Nat Nat = return True
         go NatPlus NatPlus = return True
+        go NatTimes NatTimes = return True
         go (ListLit tL esL) (ListLit tR esR) = do
             b1 <- go tL tR
             if b1
@@ -413,6 +418,7 @@ instance Buildable a => Buildable (Expr a)
             NatLit n          -> build n
             Nat               -> "#Nat"
             NatPlus           -> "#Nat/(+)"
+            NatTimes          -> "#Nat/(*)"
             ListLit t xs      ->
                     "[nil "
                 <>  build t
@@ -460,6 +466,7 @@ shift d ! v      (App f a          ) = App f' a'
 shift _ ! _      (NatLit n         ) = NatLit n
 shift _ ! _       Nat                = Nat
 shift _ ! _       NatPlus            = NatPlus
+shift _ ! _       NatTimes           = NatTimes
 shift d ! v      (ListLit t es     ) = ListLit t' es'
   where
     t'  = shift d v t
@@ -523,6 +530,7 @@ subst ! v      e  (App f a          ) = App f' a'
 subst ! _      _  (NatLit n         ) = NatLit n
 subst ! _      _   Nat                = Nat
 subst ! _      _   NatPlus            = NatPlus
+subst ! _      _   NatTimes           = NatTimes
 subst ! v      e  (ListLit t es     ) = ListLit t' es'
   where
     t'  = subst v e t
@@ -589,6 +597,7 @@ freeIn ! v      (App f a          ) = freeIn v f || freeIn v a
 freeIn ! _      (NatLit _         ) = False
 freeIn ! _       Nat                = False
 freeIn ! _       NatPlus            = False
+freeIn ! _       NatTimes           = False
 freeIn ! v      (ListLit t es     ) = freeIn v t || any (freeIn v) es
 freeIn ! _       List               = False
 freeIn ! _       ListEnum           = False
@@ -639,6 +648,8 @@ normalize e = case e of
         _          -> case App f' a' of
             App (App NatPlus (NatLit m)) (NatLit n) ->
                 NatLit (m + n)
+            App (App NatTimes (NatLit m)) (NatLit n) ->
+                NatLit (m * n)
             App ListEnum (NatLit n) ->
                 ListLit Nat (Vector.generate (fromIntegral n) (NatLit . fromIntegral))
             App (App (App (App ListFold _) (ListLit _ es)) p) z ->
@@ -652,6 +663,7 @@ normalize e = case e of
     NatLit n          -> n `seq` NatLit n
     Nat               -> Nat
     NatPlus           -> NatPlus
+    NatTimes          -> NatTimes
     ListLit t es      -> ListLit (normalize t) (Vector.map normalize es)
     List              -> List
     ListFold          -> ListFold
@@ -720,6 +732,7 @@ typeWith ctx e = case e of
     NatLit _          -> return Nat
     Nat               -> return (Const Star)
     NatPlus           -> return (Pi "_" Nat (Pi "_" Nat Nat))
+    NatTimes          -> return (Pi "_" Nat (Pi "_" Nat Nat))
     ListLit t xs      -> do
         k <- typeWith ctx t
         if k == Const Star

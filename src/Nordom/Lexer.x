@@ -73,6 +73,7 @@ tokens :-
     "#Cmd"                          { \_    -> yield Cmd                       }
     "#Path"                         { \_    -> yield Path                      }
     "#Nat/(+)"                      { \_    -> yield NatPlus                   }
+    "#Nat/(*)"                      { \_    -> yield NatTimes                  }
     "#List/enum"                    { \_    -> yield ListEnum                  }
     "#List/fold"                    { \_    -> yield ListFold                  }
     $digit+                         { \text -> yield (Number (toInt text))     }
@@ -207,6 +208,7 @@ data Token
     | Do
     | Nat
     | NatPlus
+    | NatTimes
     | List
     | ListEnum
     | ListFold
