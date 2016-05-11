@@ -76,6 +76,7 @@ tokens :-
     "#Nat/(*)"                      { \_    -> yield NatTimes                  }
     "#List/enum"                    { \_    -> yield ListEnum                  }
     "#List/fold"                    { \_    -> yield ListFold                  }
+    "#List/map"                     { \_    -> yield ListMap                   }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
     "https://" $nonwhite+           { \text -> yield (URL text)                }
@@ -212,6 +213,7 @@ data Token
     | List
     | ListEnum
     | ListFold
+    | ListMap
     | Cmd
     | Path
     | Label Text

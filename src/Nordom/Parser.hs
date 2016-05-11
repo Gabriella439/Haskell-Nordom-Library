@@ -126,6 +126,7 @@ expr = mdo
         <|> match Lexer.List     *> pure List
         <|> match Lexer.ListEnum *> pure ListEnum
         <|> match Lexer.ListFold *> pure ListFold
+        <|> match Lexer.ListMap  *> pure ListMap
         <|> match Lexer.Cmd      *> pure Cmd
         <|> match Lexer.Path     *> pure Path
         <|> (match Lexer.OpenParen *> expr <* match Lexer.CloseParen)

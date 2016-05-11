@@ -207,6 +207,8 @@ data Expr a
     | ListEnum
     -- | > ListFold                        ~  #List/fold
     | ListFold
+    -- | > ListMap                         ~  #List/map
+    | ListMap
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
     -- | > Path                            ~  #Path
@@ -239,6 +241,7 @@ instance Applicative Expr where
         List              -> List
         ListEnum          -> ListEnum
         ListFold          -> ListFold
+        ListMap           -> ListMap
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
             ps' = do
@@ -276,6 +279,7 @@ instance Monad Expr where
         List              -> List
         ListEnum          -> ListEnum
         ListFold          -> ListFold
+        ListMap           -> ListMap
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
             ps' = do
@@ -344,6 +348,7 @@ instance Eq a => Eq (Expr a) where
         go List List = return True
         go ListEnum ListEnum = return True
         go ListFold ListFold = return True
+        go ListMap  ListMap  = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
             let loop ((oL, mL):ls) ((oR, mR):rs) = do
@@ -427,6 +432,7 @@ instance Buildable a => Buildable (Expr a)
             List              -> "#List"
             ListEnum          -> "#List/enum"
             ListFold          -> "#List/fold"
+            ListMap           -> "#List/map"
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
@@ -474,6 +480,7 @@ shift d ! v      (ListLit t es     ) = ListLit t' es'
 shift _ ! _       List               = List
 shift _ ! _       ListEnum           = ListEnum
 shift _ ! _       ListFold           = ListFold
+shift _ ! _       ListMap            = ListMap
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = shift d v cat
@@ -538,6 +545,7 @@ subst ! v      e  (ListLit t es     ) = ListLit t' es'
 subst ! _      _   List               = List
 subst ! _      _   ListEnum           = ListEnum
 subst ! _      _   ListFold           = ListFold
+subst ! _      _   ListMap            = ListMap
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = subst v e cat
@@ -602,6 +610,7 @@ freeIn ! v      (ListLit t es     ) = freeIn v t || any (freeIn v) es
 freeIn ! _       List               = False
 freeIn ! _       ListEnum           = False
 freeIn ! _       ListFold           = False
+freeIn ! _       ListMap            = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
     f (o, m) = freeIn v o || freeIn v m
@@ -656,6 +665,8 @@ normalize e = case e of
                 Vector.foldl' step z es
               where
                 step x e' = normalize (App (App p x) e')
+            App (App (App (App ListMap _) b) k) (ListLit _ es) ->
+                ListLit b (Vector.map (\e' -> normalize (App k e')) es)
             _ -> App f' a'
       where
         f' = normalize f
@@ -667,6 +678,7 @@ normalize e = case e of
     ListLit t es      -> ListLit (normalize t) (Vector.map normalize es)
     List              -> List
     ListFold          -> ListFold
+    ListMap           -> ListMap
     ListEnum          -> ListEnum
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
@@ -749,10 +761,18 @@ typeWith ctx e = case e of
         return (App List t)
     List              -> return (Pi "_" (Const Star) (Const Star))
     ListEnum          -> return (Pi "_" Nat (App List Nat))
-    ListFold          -> do
-        let arg1 = Pi "_" "m" (Pi "_" "m" "m")
-        let arg2 = App List "m"
-        return (Pi "m" (Const Star) (Pi "_" arg2 (Pi "_" arg1 (Pi "_" "m" "m"))))
+    ListFold          ->
+        return
+            (Pi "m" (Const Star)
+                (Pi "_" (App List "m")
+                    (Pi "_" (Pi "_" "m" (Pi "_" "m" "m"))
+                        (Pi "_" "m" "m") ) ) )
+    ListMap           ->
+        return
+            (Pi "a" (Const Star)
+                (Pi "b" (Const Star)
+                    (Pi "_" (Pi "_" "a" "b")
+                        (Pi "_" (App List "a") (App List "b")) ) ) )
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat
         if k == Pi "_" (Const Star) (Pi "_" (Const Star) (Const Star))
