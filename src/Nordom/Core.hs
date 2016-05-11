@@ -213,7 +213,7 @@ data Expr a
     | ListFold
     -- | > ListHead                        ~  #List/head
     | ListHead
-    -- | > ListLast
+    -- | > ListLast                        ~  #List/last
     | ListLast
     -- | > ListLength                      ~  #List/length
     | ListLength
