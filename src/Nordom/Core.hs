@@ -209,6 +209,8 @@ data Expr a
     | ListEnum
     -- | > ListFold                        ~  #List/fold
     | ListFold
+    -- | > ListLength                      ~  #List/length
+    | ListLength
     -- | > ListMap                         ~  #List/map
     | ListMap
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
@@ -244,6 +246,7 @@ instance Applicative Expr where
         ListAppend        -> ListAppend
         ListEnum          -> ListEnum
         ListFold          -> ListFold
+        ListLength        -> ListLength
         ListMap           -> ListMap
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
@@ -283,6 +286,7 @@ instance Monad Expr where
         ListAppend        -> ListAppend
         ListEnum          -> ListEnum
         ListFold          -> ListFold
+        ListLength        -> ListLength
         ListMap           -> ListMap
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
@@ -353,6 +357,7 @@ instance Eq a => Eq (Expr a) where
         go ListAppend ListAppend = return True
         go ListEnum ListEnum = return True
         go ListFold ListFold = return True
+        go ListLength ListLength = return True
         go ListMap  ListMap  = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
@@ -438,6 +443,7 @@ instance Buildable a => Buildable (Expr a)
             ListAppend        -> "#List/(++)"
             ListEnum          -> "#List/enum"
             ListFold          -> "#List/fold"
+            ListLength        -> "#List/length"
             ListMap           -> "#List/map"
             PathLit cat ps o0 ->
                     "[id "
@@ -487,6 +493,7 @@ shift _ ! _       List               = List
 shift _ ! _       ListAppend         = ListAppend
 shift _ ! _       ListEnum           = ListEnum
 shift _ ! _       ListFold           = ListFold
+shift _ ! _       ListLength         = ListLength
 shift _ ! _       ListMap            = ListMap
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
@@ -553,6 +560,7 @@ subst ! _      _   List               = List
 subst ! _      _   ListAppend         = ListAppend
 subst ! _      _   ListEnum           = ListEnum
 subst ! _      _   ListFold           = ListFold
+subst ! _      _   ListLength         = ListLength
 subst ! _      _   ListMap            = ListMap
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
@@ -619,6 +627,7 @@ freeIn ! _       List               = False
 freeIn ! _       ListAppend         = False
 freeIn ! _       ListEnum           = False
 freeIn ! _       ListFold           = False
+freeIn ! _       ListLength         = False
 freeIn ! _       ListMap            = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
@@ -676,6 +685,8 @@ normalize e = case e of
                 Vector.foldl' step z es
               where
                 step x e' = normalize (App (App p x) e')
+            App (App ListLength _) (ListLit _ es) ->
+                NatLit (fromIntegral (Vector.length es))
             App (App (App (App ListMap _) b) k) (ListLit _ es) ->
                 ListLit b (Vector.map (\e' -> normalize (App k e')) es)
             _ -> App f' a'
@@ -691,6 +702,7 @@ normalize e = case e of
     ListAppend        -> ListAppend
     ListEnum          -> ListEnum
     ListFold          -> ListFold
+    ListLength        -> ListLength
     ListMap           -> ListMap
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
@@ -784,6 +796,8 @@ typeWith ctx e = case e of
                 (Pi "_" (App List "m")
                     (Pi "_" (Pi "_" "m" (Pi "_" "m" "m"))
                         (Pi "_" "m" "m") ) ) )
+    ListLength        ->
+        return (Pi "a" (Const Star) (Pi "_" (App List "a") Nat))
     ListMap           ->
         return
             (Pi "a" (Const Star)

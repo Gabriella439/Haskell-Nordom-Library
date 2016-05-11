@@ -77,6 +77,7 @@ tokens :-
     "#List/(++)"                    { \_    -> yield ListAppend                }
     "#List/enum"                    { \_    -> yield ListEnum                  }
     "#List/fold"                    { \_    -> yield ListFold                  }
+    "#List/length"                  { \_    -> yield ListLength                }
     "#List/map"                     { \_    -> yield ListMap                   }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
@@ -215,6 +216,7 @@ data Token
     | ListAppend
     | ListEnum
     | ListFold
+    | ListLength
     | ListMap
     | Cmd
     | Path
