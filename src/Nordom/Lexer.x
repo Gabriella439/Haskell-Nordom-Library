@@ -78,6 +78,7 @@ tokens :-
     "#List/enum"                    { \_    -> yield ListEnum                  }
     "#List/fold"                    { \_    -> yield ListFold                  }
     "#List/head"                    { \_    -> yield ListHead                  }
+    "#List/last"                    { \_    -> yield ListLast                  }
     "#List/length"                  { \_    -> yield ListLength                }
     "#List/map"                     { \_    -> yield ListMap                   }
     $digit+                         { \text -> yield (Number (toInt text))     }
@@ -218,6 +219,7 @@ data Token
     | ListEnum
     | ListFold
     | ListHead
+    | ListLast
     | ListLength
     | ListMap
     | Cmd
