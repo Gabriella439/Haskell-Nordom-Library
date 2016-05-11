@@ -72,6 +72,9 @@ tokens :-
     "#List"                         { \_    -> yield List                      }
     "#Cmd"                          { \_    -> yield Cmd                       }
     "#Path"                         { \_    -> yield Path                      }
+    "#Nat/(+)"                      { \_    -> yield NatPlus                   }
+    "#List/enum"                    { \_    -> yield ListEnum                  }
+    "#List/fold"                    { \_    -> yield ListFold                  }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
     "https://" $nonwhite+           { \text -> yield (URL text)                }
@@ -203,7 +206,10 @@ data Token
     | In
     | Do
     | Nat
+    | NatPlus
     | List
+    | ListEnum
+    | ListFold
     | Cmd
     | Path
     | Label Text

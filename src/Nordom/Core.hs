@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns       #-}
+{-# LANGUAGE DeriveAnyClass     #-}
 {-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DeriveTraversable  #-}
@@ -34,12 +35,12 @@ module Nordom.Core (
 
 import Control.Applicative (pure, empty)
 import Control.Exception (Exception)
-import Control.Monad (forM_)
 import Data.Monoid ((<>))
 import Data.String (IsString(..))
 import Data.Text.Buildable (Buildable(..))
 import Data.Text.Lazy (Text)
 import Data.Typeable (Typeable)
+import Data.Vector (Vector)
 import Filesystem.Path (FilePath)
 import Nordom.Context (Context)
 import Prelude hiding (FilePath, pi)
@@ -47,6 +48,7 @@ import Prelude hiding (FilePath, pi)
 import qualified Control.Monad.Trans.State as State
 import qualified Data.Text.Lazy            as Text
 import qualified Data.Text.Lazy.Builder    as Builder
+import qualified Data.Vector               as Vector
 import qualified Filesystem.Path.CurrentOS as Filesystem
 import qualified Nordom.Context            as Context
 
@@ -190,13 +192,19 @@ data Expr a
     -- | > App f a                         ~  f a
     | App (Expr a) (Expr a)
     -- | > NatLit  n                       ~  n
-    | NatLit Integer
+    | NatLit !Int
     -- | > Nat                             ~  #Nat
     | Nat
+    -- | > NatPlus                         ~  #Nat/(+)
+    | NatPlus
     -- | > ListLit t [x, y, z]             ~  [nil t,x,y,z]
-    | ListLit (Expr a) [Expr a]
+    | ListLit (Expr a) (Vector (Expr a))
     -- | > List                            ~  #List
     | List
+    -- | > ListEnum                        ~  #List/enum
+    | ListEnum
+    -- | > ListFold                        ~  #List/fold
+    | ListFold
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
     -- | > Path                            ~  #Path
@@ -219,12 +227,15 @@ instance Applicative Expr where
         App f a           -> App (f <*> mx) (a <*> mx)
         NatLit n          -> NatLit n
         Nat               -> Nat
+        NatPlus           -> NatPlus
         ListLit t es      -> ListLit (t <*> mx) es'
           where
             es' = do
                 e <- es
                 return (e <*> mx)
         List              -> List
+        ListEnum          -> ListEnum
+        ListFold          -> ListFold
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
             ps' = do
@@ -252,12 +263,15 @@ instance Monad Expr where
         App f a           -> App (f >>= k) (a >>= k)
         NatLit n          -> NatLit n
         Nat               -> Nat
+        NatPlus           -> NatPlus
         ListLit t es      -> ListLit (t >>= k) es'
           where
             es' = do
                 e <- es
                 return (e >>= k)
         List              -> List
+        ListEnum          -> ListEnum
+        ListFold          -> ListFold
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
             ps' = do
@@ -316,15 +330,15 @@ instance Eq a => Eq (Expr a) where
         go (NatLit nL) (NatLit nR) = do
             return (nL == nR)
         go Nat Nat = return True
+        go NatPlus NatPlus = return True
         go (ListLit tL esL) (ListLit tR esR) = do
             b1 <- go tL tR
-            let loop (l:ls) (r:rs) = do
-                    b <- go l r
-                    if b then loop ls rs else return False
-                loop [] [] = return True
-                loop _  _  = return False
-            if b1 then loop esL esR else return False
+            if b1
+                then fmap Vector.and (Vector.zipWithM go esL esR)
+                else return False
         go List List = return True
+        go ListEnum ListEnum = return True
+        go ListFold ListFold = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
             let loop ((oL, mL):ls) ((oR, mR):rs) = do
@@ -360,7 +374,7 @@ instance Eq a => Eq (Expr a) where
             b3b <- if b3a then go rL rR     else return False
             State.put ctx
             return b3b
-        go Cmd Cmd = return False
+        go Cmd Cmd = return True
         go (Embed pL) (Embed pR) = return (pL == pR)
         go _ _ = return False
 
@@ -398,12 +412,15 @@ instance Buildable a => Buildable (Expr a)
                 <>  (if parenApp then ")" else "")
             NatLit n          -> build n
             Nat               -> "#Nat"
+            NatPlus           -> "#Nat/(+)"
             ListLit t xs      ->
                     "[nil "
                 <>  build t
-                <>  mconcat (map (\x -> ", " <> build x) xs)
+                <>  foldMap (\x -> ", " <> build x) xs
                 <>  "]"
             List              -> "#List"
+            ListEnum          -> "#List/enum"
+            ListFold          -> "#List/fold"
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
@@ -415,7 +432,7 @@ instance Buildable a => Buildable (Expr a)
             Path              -> "#Path"
             Do m bs b0        ->
                     "do " <> build m <> " { "
-                <>  mconcat (map build bs)
+                <>  mconcat (map (\b -> build b <> " ") bs)
                 <>  build b0
                 <>  " }"
             Cmd               -> "#Cmd"
@@ -442,11 +459,14 @@ shift d ! v      (App f a          ) = App f' a'
     a' = shift d v a
 shift _ ! _      (NatLit n         ) = NatLit n
 shift _ ! _       Nat                = Nat
+shift _ ! _       NatPlus            = NatPlus
 shift d ! v      (ListLit t es     ) = ListLit t' es'
   where
     t'  = shift d v t
-    es' = map (shift d v) es
+    es' = Vector.map (shift d v) es
 shift _ ! _       List               = List
+shift _ ! _       ListEnum           = ListEnum
+shift _ ! _       ListFold           = ListFold
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = shift d v cat
@@ -502,11 +522,14 @@ subst ! v      e  (App f a          ) = App f' a'
     a' = subst v e a
 subst ! _      _  (NatLit n         ) = NatLit n
 subst ! _      _   Nat                = Nat
+subst ! _      _   NatPlus            = NatPlus
 subst ! v      e  (ListLit t es     ) = ListLit t' es'
   where
     t'  = subst v e t
-    es' = map (subst v e) es
+    es' = Vector.map (subst v e) es
 subst ! _      _   List               = List
+subst ! _      _   ListEnum           = ListEnum
+subst ! _      _   ListFold           = ListFold
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = subst v e cat
@@ -565,8 +588,11 @@ freeIn ! v      (App f a          ) = freeIn v f || freeIn v a
 -- The Nordom compiler enforces that all embedded values are closed expressions
 freeIn ! _      (NatLit _         ) = False
 freeIn ! _       Nat                = False
+freeIn ! _       NatPlus            = False
 freeIn ! v      (ListLit t es     ) = freeIn v t || any (freeIn v) es
 freeIn ! _       List               = False
+freeIn ! _       ListEnum           = False
+freeIn ! _       ListFold           = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
     f (o, m) = freeIn v o || freeIn v m
@@ -606,16 +632,30 @@ normalize e = case e of
         b' = normalize b
         e' = Lam x (normalize _A) b'
     Pi  x _A _B       -> Pi x (normalize _A) (normalize _B)
-    App f a           -> case normalize f of
+    App f a           -> case f' of
         Lam x _A b -> normalize (shift (-1) (V x 0) b')  -- Beta reduce
           where
-            a' = shift 1 (V x 0) (normalize a)
-            b' = subst (V x 0) a' b
-        f'            -> App f' (normalize a)
-    NatLit n          -> NatLit n
+            b' = subst (V x 0) (shift 1 (V x 0) a') b
+        _          -> case App f' a' of
+            App (App NatPlus (NatLit m)) (NatLit n) ->
+                NatLit (m + n)
+            App ListEnum (NatLit n) ->
+                ListLit Nat (Vector.generate (fromIntegral n) (NatLit . fromIntegral))
+            App (App (App (App ListFold _) (ListLit _ es)) p) z ->
+                Vector.foldl' step z es
+              where
+                step x e' = normalize (App (App p x) e')
+            _ -> App f' a'
+      where
+        f' = normalize f
+        a' = normalize a
+    NatLit n          -> n `seq` NatLit n
     Nat               -> Nat
-    ListLit t es      -> ListLit (normalize t) (map normalize es)
+    NatPlus           -> NatPlus
+    ListLit t es      -> ListLit (normalize t) (Vector.map normalize es)
     List              -> List
+    ListFold          -> ListFold
+    ListEnum          -> ListEnum
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
         ps' = do
@@ -679,19 +719,13 @@ typeWith ctx e = case e of
                 Left (TypeError ctx e (TypeMismatch nf_A nf_A'))
     NatLit _          -> return Nat
     Nat               -> return (Const Star)
+    NatPlus           -> return (Pi "_" Nat (Pi "_" Nat Nat))
     ListLit t xs      -> do
         k <- typeWith ctx t
         if k == Const Star
             then return ()
             else Left (TypeError ctx e (InvalidListType t k))
-        -- This check is necessary to ensure that `ListLit` obeys the exact
-        -- same typing rules as the equivalent Boehm-Berarducci encoding.
-        let check c1 c2 = case rule c1 c2 of
-                Left  _ -> Left (TypeError ctx e (ListsUnsupported c1 c2))
-                Right _ -> return ()
-        check Star Star
-        check Box  Star
-        forM_ (zip [0..] xs) (\(n, x) -> do
+        flip Vector.imapM_ xs (\n x -> do
             t' <- typeWith ctx x
             if t == t'
                 then return ()
@@ -701,18 +735,16 @@ typeWith ctx e = case e of
                     Left (TypeError ctx e (InvalidElement n x nf_t nf_t')) )
         return (App List t)
     List              -> return (Pi "_" (Const Star) (Const Star))
+    ListEnum          -> return (Pi "_" Nat (App List Nat))
+    ListFold          -> do
+        let arg1 = Pi "_" "m" (Pi "_" "m" "m")
+        let arg2 = App List "m"
+        return (Pi "m" (Const Star) (Pi "_" arg2 (Pi "_" arg1 (Pi "_" "m" "m"))))
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat
         if k == Pi "_" (Const Star) (Pi "_" (Const Star) (Const Star))
             then return ()
             else Left (TypeError ctx e (InvalidPathType cat k))
-        -- This check is necessary to ensure that `PathLit` obeys the exact
-        -- same typing rules as the equivalent Boehm-Berarducci encoding.
-        let check c1 c2 = case rule c1 c2 of
-                Left  _ -> Left (TypeError ctx e (PathsUnsupported c1 c2))
-                Right _ -> return ()
-        check Star Star
-        check Box  Star
         let checkStop n o = do
                 oT <- typeWith ctx o
                 if oT == Const Star
@@ -753,13 +785,6 @@ typeWith ctx e = case e of
         if k == Pi "_" (Const Star) (Const Star)
             then return ()
             else Left (TypeError ctx e (InvalidCmdType m k))
-        -- This check is necessary to ensure that `Do` obeys the exact same
-        -- typing rules as the equivalent Boehm-Berarducci encoding.
-        let check c1 c2 = case rule c1 c2 of
-                Left  _ -> Left (TypeError ctx e (CmdsUnsupported c1 c2))
-                Right _ -> return ()
-        check Star Star
-        check Box  Star
         let loop !n (b@(Bind a@(Arg x _A) r):bs) ctx' = do
                 _AT <- typeWith ctx' _A
                 if _AT == Const Star
@@ -796,7 +821,7 @@ data TypeMessage
     | Untyped Const
     | InvalidListType (Expr X) (Expr X)
     | ListsUnsupported Const Const
-    | InvalidElement Integer (Expr X) (Expr X) (Expr X)
+    | InvalidElement Int (Expr X) (Expr X) (Expr X)
     | InvalidCmdType (Expr X) (Expr X) 
     | CmdsUnsupported Const Const
     | InvalidAction Integer (Bind X) (Expr X) (Expr X)

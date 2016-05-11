@@ -33,6 +33,7 @@ import Text.Earley
 import qualified Nordom.Lexer   as Lexer
 import qualified Pipes.Prelude  as Pipes
 import qualified Data.Text.Lazy as Text
+import qualified Data.Vector    as Vector
 
 match :: Token -> Prod r Token LocatedToken Token
 match t = fmap Lexer.token (satisfy predicate) <?> t
@@ -110,7 +111,7 @@ expr = mdo
         <|> (NatLit . fromIntegral) <$> number
         <|>     ListLit
             <$> (match Lexer.OpenList *> expr)
-            <*> (many (match Lexer.Comma *> expr) <* match Lexer.CloseBracket)
+            <*> (fmap Vector.fromList (many (match Lexer.Comma *> expr)) <* match Lexer.CloseBracket)
         <|>     PathLit
             <$> (match Lexer.OpenPath *> expr)
             <*> many ((,) <$> object <*> expr)
@@ -119,10 +120,13 @@ expr = mdo
             <$> (match Lexer.Do *> expr)
             <*> (match Lexer.OpenBrace *> many bind)
             <*> (bind <* match Lexer.CloseBrace)
-        <|> match Lexer.Nat  *> pure Nat
-        <|> match Lexer.List *> pure List
-        <|> match Lexer.Cmd  *> pure Cmd
-        <|> match Lexer.Path *> pure Path
+        <|> match Lexer.Nat      *> pure Nat
+        <|> match Lexer.NatPlus  *> pure NatPlus
+        <|> match Lexer.List     *> pure List
+        <|> match Lexer.ListEnum *> pure ListEnum
+        <|> match Lexer.ListFold *> pure ListFold
+        <|> match Lexer.Cmd      *> pure Cmd
+        <|> match Lexer.Path     *> pure Path
         <|> (match Lexer.OpenParen *> expr <* match Lexer.CloseParen)
         )
 
