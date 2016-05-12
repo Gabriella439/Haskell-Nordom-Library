@@ -35,6 +35,7 @@ module Nordom.Core (
 
 import Control.Applicative (pure, empty)
 import Control.Exception (Exception)
+import Control.Monad (join)
 import Data.Monoid ((<>))
 import Data.String (IsString(..))
 import Data.Text.Buildable (Buildable(..))
@@ -211,6 +212,8 @@ data Expr a
     | ListFold
     -- | > ListHead                        ~  #List/head
     | ListHead
+    -- | > ListJoin                        ~  #List/join
+    | ListJoin
     -- | > ListIndexed                     ~  #List/indexed
     | ListIndexed
     -- | > ListLast                        ~  #List/last
@@ -258,6 +261,7 @@ instance Applicative Expr where
         ListFold          -> ListFold
         ListHead          -> ListHead
         ListIndexed       -> ListIndexed
+        ListJoin          -> ListJoin
         ListLast          -> ListLast
         ListLength        -> ListLength
         ListMap           -> ListMap
@@ -303,6 +307,7 @@ instance Monad Expr where
         ListFold          -> ListFold
         ListHead          -> ListHead
         ListIndexed       -> ListIndexed
+        ListJoin          -> ListJoin
         ListLast          -> ListLast
         ListLength        -> ListLength
         ListMap           -> ListMap
@@ -376,9 +381,10 @@ instance Eq a => Eq (Expr a) where
         go List List = return True
         go ListAppend ListAppend = return True
         go ListDrop ListDrop = return True
-        go ListIndexed ListIndexed = return True
         go ListFold ListFold = return True
         go ListHead ListHead = return True
+        go ListIndexed ListIndexed = return True
+        go ListJoin ListJoin = return True
         go ListLast ListLast = return True
         go ListLength ListLength = return True
         go ListMap ListMap = return True
@@ -470,6 +476,7 @@ instance Buildable a => Buildable (Expr a)
             ListFold          -> "#List/fold"
             ListHead          -> "#List/head"
             ListIndexed       -> "#List/indexed"
+            ListJoin          -> "#List/join"
             ListLast          -> "#List/last"
             ListLength        -> "#List/length"
             ListMap           -> "#List/map"
@@ -525,6 +532,7 @@ shift _ ! _       ListDrop           = ListDrop
 shift _ ! _       ListFold           = ListFold
 shift _ ! _       ListHead           = ListHead
 shift _ ! _       ListIndexed        = ListIndexed
+shift _ ! _       ListJoin           = ListJoin
 shift _ ! _       ListLast           = ListLast
 shift _ ! _       ListLength         = ListLength
 shift _ ! _       ListMap            = ListMap
@@ -597,6 +605,7 @@ subst ! _      _   ListDrop           = ListDrop
 subst ! _      _   ListFold           = ListFold
 subst ! _      _   ListHead           = ListHead
 subst ! _      _   ListIndexed        = ListIndexed
+subst ! _      _   ListJoin           = ListJoin
 subst ! _      _   ListLast           = ListLast
 subst ! _      _   ListLength         = ListLength
 subst ! _      _   ListMap            = ListMap
@@ -669,6 +678,7 @@ freeIn ! _       ListDrop           = False
 freeIn ! _       ListFold           = False
 freeIn ! _       ListHead           = False
 freeIn ! _       ListIndexed        = False
+freeIn ! _       ListJoin           = False
 freeIn ! _       ListLast           = False
 freeIn ! _       ListLength         = False
 freeIn ! _       ListMap            = False
@@ -750,6 +760,13 @@ normalize e = case e of
                         (Lam "Make" (Pi "_" Nat (Pi "_" t "Prod2"))
                             (App (App "Make" (NatLit (fromIntegral n)))
                                 (shiftElem x) ) )
+            App (App ListJoin t) (ListLit _ ess) ->
+                case Vector.mapM extract ess of
+                    Just ess' -> normalize (ListLit t (join ess'))
+                    Nothing   -> App f' a'
+              where
+                extract (ListLit _ es) = Just es
+                extract  _             = Nothing
             App (App ListLast t) (ListLit _ es) ->
                 Lam "Maybe" (Const Star)
                     (Lam "Just" (Pi "_" t' "Maybe")
@@ -792,6 +809,7 @@ normalize e = case e of
     ListFold          -> ListFold
     ListHead          -> ListHead
     ListIndexed       -> ListIndexed
+    ListJoin          -> ListJoin
     ListLast          -> ListLast
     ListLength        -> ListLength
     ListMap           -> ListMap
@@ -887,14 +905,6 @@ typeWith ctx e = case e of
             (Pi "_" Nat
                 (Pi "a" (Const Star)
                     (Pi "_" (App List "a") (App List "a")) ) )
-    ListIndexed       ->
-        return
-            (Pi "a" (Const Star)
-                (Pi "_" (App List "a")
-                    (App List p) ) )
-      where
-        p = Pi "Prod2" (Const Star)
-                (Pi "Make" (Pi "_" Nat (Pi "_" "a" "Prod2")) "Prod2")
     ListFold          ->
         return
             (Pi "m" (Const Star)
@@ -908,6 +918,18 @@ typeWith ctx e = case e of
                     (Pi "Maybe" (Const Star)
                         (Pi "Just" (Pi "_" "a" "Maybe")
                             (Pi "Nothing" "Maybe" "Maybe") ) ) ) )
+    ListIndexed       ->
+        return
+            (Pi "a" (Const Star)
+                (Pi "_" (App List "a")
+                    (App List p) ) )
+      where
+        p = Pi "Prod2" (Const Star)
+                (Pi "Make" (Pi "_" Nat (Pi "_" "a" "Prod2")) "Prod2")
+    ListJoin          ->
+        return
+            (Pi "a" (Const Star)
+                (Pi "_" (App List (App List "a")) (App List "a")) )
     ListLast          ->
         return
             (Pi "a" (Const Star)

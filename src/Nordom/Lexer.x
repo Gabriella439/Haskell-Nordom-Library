@@ -79,6 +79,7 @@ tokens :-
     "#List/fold"                    { \_    -> yield ListFold                  }
     "#List/head"                    { \_    -> yield ListHead                  }
     "#List/indexed"                 { \_    -> yield ListIndexed               }
+    "#List/join"                    { \_    -> yield ListJoin                  }
     "#List/last"                    { \_    -> yield ListLast                  }
     "#List/length"                  { \_    -> yield ListLength                }
     "#List/map"                     { \_    -> yield ListMap                   }
@@ -223,6 +224,7 @@ data Token
     | ListFold
     | ListHead
     | ListIndexed
+    | ListJoin
     | ListLast
     | ListLength
     | ListMap
