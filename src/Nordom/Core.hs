@@ -207,12 +207,12 @@ data Expr a
     | ListAppend
     -- | > ListDrop                        ~  #List/drop
     | ListDrop
-    -- | > ListEnum                        ~  #List/enum
-    | ListEnum
     -- | > ListFold                        ~  #List/fold
     | ListFold
     -- | > ListHead                        ~  #List/head
     | ListHead
+    -- | > ListIndexed                     ~  #List/indexed
+    | ListIndexed
     -- | > ListLast                        ~  #List/last
     | ListLast
     -- | > ListLength                      ~  #List/length
@@ -255,9 +255,9 @@ instance Applicative Expr where
         List              -> List
         ListAppend        -> ListAppend
         ListDrop          -> ListDrop
-        ListEnum          -> ListEnum
         ListFold          -> ListFold
         ListHead          -> ListHead
+        ListIndexed       -> ListIndexed
         ListLast          -> ListLast
         ListLength        -> ListLength
         ListMap           -> ListMap
@@ -300,9 +300,9 @@ instance Monad Expr where
         List              -> List
         ListAppend        -> ListAppend
         ListDrop          -> ListDrop
-        ListEnum          -> ListEnum
         ListFold          -> ListFold
         ListHead          -> ListHead
+        ListIndexed       -> ListIndexed
         ListLast          -> ListLast
         ListLength        -> ListLength
         ListMap           -> ListMap
@@ -376,7 +376,7 @@ instance Eq a => Eq (Expr a) where
         go List List = return True
         go ListAppend ListAppend = return True
         go ListDrop ListDrop = return True
-        go ListEnum ListEnum = return True
+        go ListIndexed ListIndexed = return True
         go ListFold ListFold = return True
         go ListHead ListHead = return True
         go ListLast ListLast = return True
@@ -467,9 +467,9 @@ instance Buildable a => Buildable (Expr a)
             List              -> "#List"
             ListAppend        -> "#List/(++)"
             ListDrop          -> "#List/drop"
-            ListEnum          -> "#List/enum"
             ListFold          -> "#List/fold"
             ListHead          -> "#List/head"
+            ListIndexed       -> "#List/indexed"
             ListLast          -> "#List/last"
             ListLength        -> "#List/length"
             ListMap           -> "#List/map"
@@ -522,9 +522,9 @@ shift d ! v      (ListLit t es     ) = ListLit t' es'
 shift _ ! _       List               = List
 shift _ ! _       ListAppend         = ListAppend
 shift _ ! _       ListDrop           = ListDrop
-shift _ ! _       ListEnum           = ListEnum
 shift _ ! _       ListFold           = ListFold
 shift _ ! _       ListHead           = ListHead
+shift _ ! _       ListIndexed        = ListIndexed
 shift _ ! _       ListLast           = ListLast
 shift _ ! _       ListLength         = ListLength
 shift _ ! _       ListMap            = ListMap
@@ -594,9 +594,9 @@ subst ! v      e  (ListLit t es     ) = ListLit t' es'
 subst ! _      _   List               = List
 subst ! _      _   ListAppend         = ListAppend
 subst ! _      _   ListDrop           = ListDrop
-subst ! _      _   ListEnum           = ListEnum
 subst ! _      _   ListFold           = ListFold
 subst ! _      _   ListHead           = ListHead
+subst ! _      _   ListIndexed        = ListIndexed
 subst ! _      _   ListLast           = ListLast
 subst ! _      _   ListLength         = ListLength
 subst ! _      _   ListMap            = ListMap
@@ -666,9 +666,9 @@ freeIn ! v      (ListLit t es     ) = freeIn v t || any (freeIn v) es
 freeIn ! _       List               = False
 freeIn ! _       ListAppend         = False
 freeIn ! _       ListDrop           = False
-freeIn ! _       ListEnum           = False
 freeIn ! _       ListFold           = False
 freeIn ! _       ListHead           = False
+freeIn ! _       ListIndexed        = False
 freeIn ! _       ListLast           = False
 freeIn ! _       ListLength         = False
 freeIn ! _       ListMap            = False
@@ -726,8 +726,6 @@ normalize e = case e of
                 normalize (ListLit t ((Vector.++) xs ys))
             App (App (App ListDrop (NatLit n)) t) (ListLit _ xs) ->
                 normalize (ListLit t (Vector.drop (fromIntegral n) xs))
-            App ListEnum (NatLit n) ->
-                ListLit Nat (Vector.generate (fromIntegral n) (NatLit . fromIntegral))
             App (App (App (App ListFold _) (ListLit _ es)) p) z ->
                 Vector.foldl' step (normalize z) es
               where
@@ -743,6 +741,15 @@ normalize e = case e of
                    then "Nothing"
                    else App "Just" (shiftElem (Vector.unsafeHead es))
                shiftElem = shift 1 "Nothing" . shift 1 "Just"
+            App (App ListIndexed t) (ListLit _ es) ->
+                normalize (ListLit t (Vector.map adapt (Vector.indexed es)))
+              where
+                shiftElem    = shift 1 "Prod2" . shift 1 "Make"
+                adapt (n, x) =
+                    Lam "Prod2" (Const Star)
+                        (Lam "Make" (Pi "_" Nat (Pi "_" t "Prod2"))
+                            (App (App "Make" (NatLit (fromIntegral n)))
+                                (shiftElem x) ) )
             App (App ListLast t) (ListLit _ es) ->
                 Lam "Maybe" (Const Star)
                     (Lam "Just" (Pi "_" t' "Maybe")
@@ -782,9 +789,9 @@ normalize e = case e of
     List              -> List
     ListAppend        -> ListAppend
     ListDrop          -> ListDrop
-    ListEnum          -> ListEnum
     ListFold          -> ListFold
     ListHead          -> ListHead
+    ListIndexed       -> ListIndexed
     ListLast          -> ListLast
     ListLength        -> ListLength
     ListMap           -> ListMap
@@ -880,7 +887,14 @@ typeWith ctx e = case e of
             (Pi "_" Nat
                 (Pi "a" (Const Star)
                     (Pi "_" (App List "a") (App List "a")) ) )
-    ListEnum          -> return (Pi "_" Nat (App List Nat))
+    ListIndexed       ->
+        return
+            (Pi "a" (Const Star)
+                (Pi "_" (App List "a")
+                    (App List p) ) )
+      where
+        p = Pi "Prod2" (Const Star)
+                (Pi "Make" (Pi "_" Nat (Pi "_" "a" "Prod2")) "Prod2")
     ListFold          ->
         return
             (Pi "m" (Const Star)

@@ -76,9 +76,9 @@ tokens :-
     "#Nat/(*)"                      { \_    -> yield NatTimes                  }
     "#List/(++)"                    { \_    -> yield ListAppend                }
     "#List/drop"                    { \_    -> yield ListDrop                  }
-    "#List/enum"                    { \_    -> yield ListEnum                  }
     "#List/fold"                    { \_    -> yield ListFold                  }
     "#List/head"                    { \_    -> yield ListHead                  }
+    "#List/indexed"                 { \_    -> yield ListIndexed               }
     "#List/last"                    { \_    -> yield ListLast                  }
     "#List/length"                  { \_    -> yield ListLength                }
     "#List/map"                     { \_    -> yield ListMap                   }
@@ -220,9 +220,9 @@ data Token
     | List
     | ListAppend
     | ListDrop
-    | ListEnum
     | ListFold
     | ListHead
+    | ListIndexed
     | ListLast
     | ListLength
     | ListMap
