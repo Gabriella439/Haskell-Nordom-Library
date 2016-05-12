@@ -136,6 +136,7 @@ expr = mdo
         <|> match Lexer.ListReplicate *> pure ListReplicate
         <|> match Lexer.ListReverse   *> pure ListReverse
         <|> match Lexer.ListTake      *> pure ListTake
+        <|> match Lexer.ListTakeWhile *> pure ListTakeWhile
         <|> match Lexer.Cmd           *> pure Cmd
         <|> match Lexer.Path          *> pure Path
         <|> (match Lexer.OpenParen *> expr <* match Lexer.CloseParen)

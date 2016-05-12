@@ -44,7 +44,7 @@ import Data.Typeable (Typeable)
 import Data.Vector (Vector)
 import Filesystem.Path (FilePath)
 import Nordom.Context (Context)
-import Prelude hiding (FilePath, pi)
+import Prelude hiding (FilePath, lookup)
 
 import qualified Control.Monad.Trans.State as State
 import qualified Data.Text.Lazy            as Text
@@ -228,6 +228,8 @@ data Expr a
     | ListReverse
     -- | > ListTake                        ~  #List/take
     | ListTake
+    -- | > ListTakeWhile                   ~  #List/takeWhile
+    | ListTakeWhile
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
     -- | > Path                            ~  #Path
@@ -270,6 +272,7 @@ instance Applicative Expr where
         ListReplicate     -> ListReplicate
         ListReverse       -> ListReverse
         ListTake          -> ListTake
+        ListTakeWhile     -> ListTakeWhile
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
             ps' = do
@@ -317,6 +320,7 @@ instance Monad Expr where
         ListReplicate     -> ListReplicate
         ListReverse       -> ListReverse
         ListTake          -> ListTake
+        ListTakeWhile     -> ListTakeWhile
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
             ps' = do
@@ -395,6 +399,7 @@ instance Eq a => Eq (Expr a) where
         go ListReplicate ListReplicate = return True
         go ListReverse ListReverse = return True
         go ListTake ListTake = return True
+        go ListTakeWhile ListTakeWhile = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
             let loop ((oL, mL):ls) ((oR, mR):rs) = do
@@ -488,6 +493,7 @@ instance Buildable a => Buildable (Expr a)
             ListReplicate     -> "#List/replicate"
             ListReverse       -> "#List/reverse"
             ListTake          -> "#List/take"
+            ListTakeWhile     -> "#List/takeWhile"
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
@@ -545,6 +551,7 @@ shift _ ! _       ListMap            = ListMap
 shift _ ! _       ListReplicate      = ListReplicate
 shift _ ! _       ListReverse        = ListReverse
 shift _ ! _       ListTake           = ListTake
+shift _ ! _       ListTakeWhile      = ListTakeWhile
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = shift d v cat
@@ -619,6 +626,7 @@ subst ! _      _   ListMap            = ListMap
 subst ! _      _   ListReplicate      = ListReplicate
 subst ! _      _   ListReverse        = ListReverse
 subst ! _      _   ListTake           = ListTake
+subst ! _      _   ListTakeWhile      = ListTakeWhile
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = subst v e cat
@@ -693,6 +701,7 @@ freeIn ! _       ListMap            = False
 freeIn ! _       ListReplicate      = False
 freeIn ! _       ListReverse        = False
 freeIn ! _       ListTake           = False
+freeIn ! _       ListTakeWhile      = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
     f (o, m) = freeIn v o || freeIn v m
@@ -805,6 +814,17 @@ normalize e = case e of
                                 normalize (ListLit t (Vector.take (fromIntegral n) es))
                             _ -> App f' a'
                     _ -> App f' a'
+            App (App (App ListTakeWhile t) predicate) (ListLit _ xs) ->
+                if Vector.all extract xs
+                then normalize (ListLit t (Vector.takeWhile predicate' xs))
+                else App f' a'
+              where
+                extract x = y == Just True || y == Just False
+                  where
+                    y = decodeBool (normalize (App predicate x))
+
+                predicate' x =
+                    decodeBool (normalize (App predicate x)) == Just True
             _ -> App f' a'
       where
         f' = normalize f
@@ -827,6 +847,7 @@ normalize e = case e of
     ListReplicate     -> ListReplicate
     ListReverse       -> ListReverse
     ListTake          -> ListTake
+    ListTakeWhile     -> ListTakeWhile
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
         ps' = do
@@ -842,6 +863,35 @@ normalize e = case e of
         b0' = Bind (Arg x0 (normalize _A0)) (normalize r0)
     Cmd               -> Cmd
     Embed p           -> Embed p
+
+bool :: Expr a
+bool = Pi "Bool" (Const Star) (Pi "True" "Bool" (Pi "False" "Bool" "Bool"))
+
+lookup :: Expr a -> Context b -> Maybe b
+lookup k c = case normalize k of
+    Var (V x n) -> Context.lookup x n c
+    _           -> Nothing
+
+data BoolCtx = BoolCtxBool | BoolCtxTrue | BoolCtxFalse deriving (Eq)
+
+decodeBool :: Expr a -> Maybe Bool
+decodeBool
+    (Lam bool0 (Const Star)
+        (Lam true0 bool1
+            (Lam false0 bool2 e ) ) )
+    | lookup bool1 c1 == Just BoolCtxBool &&
+      lookup bool2 c2 == Just BoolCtxBool =
+        case lookup e c3 of
+            Just BoolCtxTrue  -> Just True
+            Just BoolCtxFalse -> Just False
+            _                 -> Nothing
+    | otherwise = Nothing
+  where
+    c0 = Context.empty
+    c1 = Context.insert bool0  BoolCtxBool c0
+    c2 = Context.insert true0  BoolCtxTrue c1
+    c3 = Context.insert false0 BoolCtxFalse c2
+decodeBool _ = Nothing
 
 {-| Type-check an expression and return the expression's type if type-checking
     suceeds or an error if type-checking fails
@@ -968,6 +1018,11 @@ typeWith ctx e = case e of
                     (Pi "Finite" (Pi "_" Nat "Minimum")
                         (Pi "Infinite" "Minimum" "Minimum") ) )
                 (Pi "a" (Const Star)
+                    (Pi "_" (App List "a") (App List "a")) ) )
+    ListTakeWhile     ->
+        return
+            (Pi "a" (Const Star)
+                (Pi "_" (Pi "_" "a" bool)
                     (Pi "_" (App List "a") (App List "a")) ) )
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat

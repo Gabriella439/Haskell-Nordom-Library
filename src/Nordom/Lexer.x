@@ -86,6 +86,7 @@ tokens :-
     "#List/replicate"               { \_    -> yield ListReplicate             }
     "#List/reverse"                 { \_    -> yield ListReverse               }
     "#List/take"                    { \_    -> yield ListTake                  }
+    "#List/takeWhile"               { \_    -> yield ListTakeWhile             }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
     "https://" $nonwhite+           { \text -> yield (URL text)                }
@@ -232,6 +233,7 @@ data Token
     | ListReplicate
     | ListReverse
     | ListTake
+    | ListTakeWhile
     | Cmd
     | Path
     | Label Text
