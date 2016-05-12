@@ -84,6 +84,7 @@ tokens :-
     "#List/length"                  { \_    -> yield ListLength                }
     "#List/map"                     { \_    -> yield ListMap                   }
     "#List/replicate"               { \_    -> yield ListReplicate             }
+    "#List/reverse"                 { \_    -> yield ListReverse               }
     "#List/take"                    { \_    -> yield ListTake                  }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
@@ -229,6 +230,7 @@ data Token
     | ListLength
     | ListMap
     | ListReplicate
+    | ListReverse
     | ListTake
     | Cmd
     | Path
