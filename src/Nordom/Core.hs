@@ -219,6 +219,8 @@ data Expr a
     | ListLength
     -- | > ListMap                         ~  #List/map
     | ListMap
+    -- | > ListReplicate                   ~  #List/replicate
+    | ListReplicate
     -- | > ListTake                        ~  #List/take
     | ListTake
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
@@ -259,6 +261,7 @@ instance Applicative Expr where
         ListLast          -> ListLast
         ListLength        -> ListLength
         ListMap           -> ListMap
+        ListReplicate     -> ListReplicate
         ListTake          -> ListTake
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
@@ -303,6 +306,7 @@ instance Monad Expr where
         ListLast          -> ListLast
         ListLength        -> ListLength
         ListMap           -> ListMap
+        ListReplicate     -> ListReplicate
         ListTake          -> ListTake
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
@@ -378,6 +382,7 @@ instance Eq a => Eq (Expr a) where
         go ListLast ListLast = return True
         go ListLength ListLength = return True
         go ListMap ListMap = return True
+        go ListReplicate ListReplicate = return True
         go ListTake ListTake = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
@@ -468,6 +473,7 @@ instance Buildable a => Buildable (Expr a)
             ListLast          -> "#List/last"
             ListLength        -> "#List/length"
             ListMap           -> "#List/map"
+            ListReplicate     -> "#List/replicate"
             ListTake          -> "#List/take"
             PathLit cat ps o0 ->
                     "[id "
@@ -522,6 +528,7 @@ shift _ ! _       ListHead           = ListHead
 shift _ ! _       ListLast           = ListLast
 shift _ ! _       ListLength         = ListLength
 shift _ ! _       ListMap            = ListMap
+shift _ ! _       ListReplicate      = ListReplicate
 shift _ ! _       ListTake           = ListTake
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
@@ -593,6 +600,7 @@ subst ! _      _   ListHead           = ListHead
 subst ! _      _   ListLast           = ListLast
 subst ! _      _   ListLength         = ListLength
 subst ! _      _   ListMap            = ListMap
+subst ! _      _   ListReplicate      = ListReplicate
 subst ! _      _   ListTake           = ListTake
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
@@ -664,6 +672,7 @@ freeIn ! _       ListHead           = False
 freeIn ! _       ListLast           = False
 freeIn ! _       ListLength         = False
 freeIn ! _       ListMap            = False
+freeIn ! _       ListReplicate      = False
 freeIn ! _       ListTake           = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
@@ -748,7 +757,9 @@ normalize e = case e of
             App (App ListLength _) (ListLit _ es) ->
                 NatLit (fromIntegral (Vector.length es))
             App (App (App (App ListMap _) b) k) (ListLit _ es) ->
-                ListLit b (Vector.map (\e' -> normalize (App k e')) es)
+                normalize (ListLit b (Vector.map (\e' -> App k e') es))
+            App (App (App ListReplicate (NatLit n)) t) x ->
+                normalize (ListLit t (Vector.replicate (fromIntegral n) x))
             App (App (App ListTake m) t) (ListLit _ es) ->
                 case m of
                     Lam _Minimum _ (Lam _Finite _ (Lam _Infinite _ m')) ->
@@ -777,6 +788,7 @@ normalize e = case e of
     ListLast          -> ListLast
     ListLength        -> ListLength
     ListMap           -> ListMap
+    ListReplicate     -> ListReplicate
     ListTake          -> ListTake
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
@@ -897,6 +909,8 @@ typeWith ctx e = case e of
                 (Pi "b" (Const Star)
                     (Pi "_" (Pi "_" "a" "b")
                         (Pi "_" (App List "a") (App List "b")) ) ) )
+    ListReplicate     ->
+        return (Pi "_" Nat (Pi "a" (Const Star) (Pi "_" "a" (App List "a"))))
     ListTake          ->
         return
             (Pi "_"
