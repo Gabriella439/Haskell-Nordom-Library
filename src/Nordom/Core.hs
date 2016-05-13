@@ -801,7 +801,7 @@ normalize e = case e of
             App (App (App (App ListMap _) b) k) (ListLit _ es) ->
                 normalize (ListLit b (Vector.map (\e' -> App k e') es))
             App (App (App ListReplicate (NatLit n)) t) x ->
-                normalize (ListLit t (Vector.replicate (fromIntegral n) x))
+                ListLit (normalize t) (Vector.replicate (fromIntegral n) (normalize x))
             App (App ListReverse t) (ListLit _ es) ->
                 normalize (ListLit t (Vector.reverse es))
             App (App (App ListTake m) t) (ListLit _ es) ->
