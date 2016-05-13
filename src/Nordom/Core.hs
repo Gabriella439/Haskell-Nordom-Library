@@ -757,7 +757,20 @@ normalize e = case e of
             App (App (App (App ListFold _) (ListLit _ es)) p) z ->
                 Vector.foldl' step (normalize z) es
               where
-                step x e' = normalize (App (App p x) e')
+                -- Special-case binary associative functions here for extra
+                -- speed
+                step = case p of
+                    NatPlus  -> stepPlus
+                    NatTimes -> stepTimes
+                    _        -> stepDefault
+
+                stepPlus (NatLit x) (NatLit y) = NatLit (x + y)
+                stepPlus         x          y  = stepDefault x y
+
+                stepTimes (NatLit x) (NatLit y) = NatLit (x * y)
+                stepTimes         x          y  = stepDefault x y
+
+                stepDefault x e' = normalize (App (App p x) e')
             App (App ListHead t) (ListLit _ es) ->
                 Lam "Maybe" (Const Star)
                     (Lam "Just" (Pi "_" t' "Maybe")
