@@ -204,7 +204,7 @@ data Expr a
     | ListLit (Expr a) (Vector (Expr a))
     -- | > List                            ~  #List
     | List
-    -- | > ListAppend                      ~  #List/append
+    -- | > ListAppend                      ~  #List/(++)
     | ListAppend
     -- | > ListDrop                        ~  #List/drop
     | ListDrop
