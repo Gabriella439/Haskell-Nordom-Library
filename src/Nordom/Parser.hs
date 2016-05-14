@@ -125,7 +125,6 @@ expr = mdo
         <|> match Lexer.NatTimes      *> pure NatTimes
         <|> match Lexer.List          *> pure List
         <|> match Lexer.ListAppend    *> pure ListAppend
-        <|> match Lexer.ListDrop      *> pure ListDrop
         <|> match Lexer.ListFold      *> pure ListFold
         <|> match Lexer.ListHead      *> pure ListHead
         <|> match Lexer.ListIndexed   *> pure ListIndexed
@@ -135,7 +134,7 @@ expr = mdo
         <|> match Lexer.ListMap       *> pure ListMap
         <|> match Lexer.ListReplicate *> pure ListReplicate
         <|> match Lexer.ListReverse   *> pure ListReverse
-        <|> match Lexer.ListTake      *> pure ListTake
+        <|> match Lexer.ListSplitAt   *> pure ListSplitAt
         <|> match Lexer.ListTakeWhile *> pure ListTakeWhile
         <|> match Lexer.Cmd           *> pure Cmd
         <|> match Lexer.Path          *> pure Path

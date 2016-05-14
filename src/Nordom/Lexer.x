@@ -75,7 +75,6 @@ tokens :-
     "#Nat/(+)"                      { \_    -> yield NatPlus                   }
     "#Nat/(*)"                      { \_    -> yield NatTimes                  }
     "#List/(++)"                    { \_    -> yield ListAppend                }
-    "#List/drop"                    { \_    -> yield ListDrop                  }
     "#List/fold"                    { \_    -> yield ListFold                  }
     "#List/head"                    { \_    -> yield ListHead                  }
     "#List/indexed"                 { \_    -> yield ListIndexed               }
@@ -85,7 +84,7 @@ tokens :-
     "#List/map"                     { \_    -> yield ListMap                   }
     "#List/replicate"               { \_    -> yield ListReplicate             }
     "#List/reverse"                 { \_    -> yield ListReverse               }
-    "#List/take"                    { \_    -> yield ListTake                  }
+    "#List/splitAt"                 { \_    -> yield ListSplitAt               }
     "#List/takeWhile"               { \_    -> yield ListTakeWhile             }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
@@ -222,7 +221,6 @@ data Token
     | NatTimes
     | List
     | ListAppend
-    | ListDrop
     | ListFold
     | ListHead
     | ListIndexed
@@ -232,7 +230,7 @@ data Token
     | ListMap
     | ListReplicate
     | ListReverse
-    | ListTake
+    | ListSplitAt
     | ListTakeWhile
     | Cmd
     | Path
