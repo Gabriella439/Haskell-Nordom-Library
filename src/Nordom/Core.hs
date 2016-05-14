@@ -224,10 +224,10 @@ data Expr a
     | ListReplicate
     -- | > ListReverse                     ~  #Vector/reverse
     | ListReverse
+    -- | > ListSpan                        ~  #Vector/span
+    | ListSpan
     -- | > ListSplitAt                     ~  #Vector/splitAt
     | ListSplitAt
-    -- | > ListTakeWhile                   ~  #Vector/takeWhile
-    | ListTakeWhile
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
     -- | > Path                            ~  #Path
@@ -268,8 +268,8 @@ instance Applicative Expr where
         ListMap           -> ListMap
         ListReplicate     -> ListReplicate
         ListReverse       -> ListReverse
+        ListSpan          -> ListSpan
         ListSplitAt       -> ListSplitAt
-        ListTakeWhile     -> ListTakeWhile
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
             ps' = do
@@ -315,8 +315,8 @@ instance Monad Expr where
         ListMap           -> ListMap
         ListReplicate     -> ListReplicate
         ListReverse       -> ListReverse
+        ListSpan          -> ListSpan
         ListSplitAt       -> ListSplitAt
-        ListTakeWhile     -> ListTakeWhile
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
             ps' = do
@@ -393,8 +393,8 @@ instance Eq a => Eq (Expr a) where
         go ListMap ListMap = return True
         go ListReplicate ListReplicate = return True
         go ListReverse ListReverse = return True
+        go ListSpan ListSpan = return True
         go ListSplitAt ListSplitAt = return True
-        go ListTakeWhile ListTakeWhile = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
             let loop ((oL, mL):ls) ((oR, mR):rs) = do
@@ -486,8 +486,8 @@ instance Buildable a => Buildable (Expr a)
             ListMap           -> "#Vector/map"
             ListReplicate     -> "#Vector/replicate"
             ListReverse       -> "#Vector/reverse"
+            ListSpan          -> "#Vector/span"
             ListSplitAt       -> "#Vector/splitAt"
-            ListTakeWhile     -> "#Vector/takeWhile"
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
@@ -543,8 +543,8 @@ shift _ ! _       ListLength         = ListLength
 shift _ ! _       ListMap            = ListMap
 shift _ ! _       ListReplicate      = ListReplicate
 shift _ ! _       ListReverse        = ListReverse
+shift _ ! _       ListSpan           = ListSpan
 shift _ ! _       ListSplitAt        = ListSplitAt
-shift _ ! _       ListTakeWhile      = ListTakeWhile
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = shift d v cat
@@ -617,8 +617,8 @@ subst ! _      _   ListLength         = ListLength
 subst ! _      _   ListMap            = ListMap
 subst ! _      _   ListReplicate      = ListReplicate
 subst ! _      _   ListReverse        = ListReverse
+subst ! _      _   ListSpan           = ListSpan
 subst ! _      _   ListSplitAt        = ListSplitAt
-subst ! _      _   ListTakeWhile      = ListTakeWhile
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = subst v e cat
@@ -691,8 +691,8 @@ freeIn ! _       ListLength         = False
 freeIn ! _       ListMap            = False
 freeIn ! _       ListReplicate      = False
 freeIn ! _       ListReverse        = False
+freeIn ! _       ListSpan           = False
 freeIn ! _       ListSplitAt        = False
-freeIn ! _       ListTakeWhile      = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
     f (o, m) = freeIn v o || freeIn v m
@@ -814,11 +814,19 @@ normalize e = case e of
                             (ListLit t suffix) ) )
               where
                 (prefix, suffix) = Vector.splitAt (fromIntegral n) es
-            App (App (App ListTakeWhile t) predicate) (ListLit _ xs) ->
+            App (App (App ListSpan t) predicate) (ListLit _ xs) ->
                 if Vector.all extract xs
-                then normalize (ListLit t (Vector.takeWhile predicate' xs))
+                then
+                    Lam "Prod2" (Const Star)
+                        (Lam "Make"
+                            (Pi "_1" (App List t)
+                                (Pi "_2" (App List t) "Prod2") )
+                            (App (App "Make" (ListLit t prefix))
+                                (ListLit t suffix) ) )
                 else App f' a'
               where
+                (prefix, suffix) = Vector.span predicate' xs
+
                 extract x = y == Just True || y == Just False
                   where
                     y = decodeBool (normalize (App predicate x))
@@ -845,8 +853,8 @@ normalize e = case e of
     ListMap           -> ListMap
     ListReplicate     -> ListReplicate
     ListReverse       -> ListReverse
+    ListSpan          -> ListSpan
     ListSplitAt       -> ListSplitAt
-    ListTakeWhile     -> ListTakeWhile
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
         ps' = do
@@ -1005,6 +1013,16 @@ typeWith ctx e = case e of
         return (Pi "_" Nat (Pi "a" (Const Star) (Pi "_" "a" (App List "a"))))
     ListReverse       ->
         return (Pi "a" (Const Star) (Pi "_" (App List "a") (App List "a")))
+    ListSpan          ->
+        return
+            (Pi "a" (Const Star)
+                (Pi "_" (Pi "_" "a" bool)
+                    (Pi "_" (App List "a")
+                        (Pi "Prod2" (Const Star)
+                            (Pi "Make"
+                                (Pi "_1" (App List "a")
+                                    (Pi "_2" (App List "a") "Prod2") )
+                                "Prod2" ) ) ) ) )
     ListSplitAt       ->
         return
             (Pi "_" Nat
@@ -1015,11 +1033,6 @@ typeWith ctx e = case e of
                                 (Pi "_1" (App List "a")
                                     (Pi "_2" (App List "a") "Prod2") )
                                 "Prod2" ) ) ) ) )
-    ListTakeWhile     ->
-        return
-            (Pi "a" (Const Star)
-                (Pi "_" (Pi "_" "a" bool)
-                    (Pi "_" (App List "a") (App List "a")) ) )
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat
         if k == Pi "_" (Const Star) (Pi "_" (Const Star) (Const Star))

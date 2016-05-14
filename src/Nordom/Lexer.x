@@ -84,8 +84,8 @@ tokens :-
     "#Vector/map"                   { \_    -> yield ListMap                   }
     "#Vector/replicate"             { \_    -> yield ListReplicate             }
     "#Vector/reverse"               { \_    -> yield ListReverse               }
+    "#Vector/span"                  { \_    -> yield ListSpan                  }
     "#Vector/splitAt"               { \_    -> yield ListSplitAt               }
-    "#Vector/takeWhile"             { \_    -> yield ListTakeWhile             }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
     "https://" $nonwhite+           { \text -> yield (URL text)                }
@@ -230,8 +230,8 @@ data Token
     | ListMap
     | ListReplicate
     | ListReverse
+    | ListSpan
     | ListSplitAt
-    | ListTakeWhile
     | Cmd
     | Path
     | Label Text
