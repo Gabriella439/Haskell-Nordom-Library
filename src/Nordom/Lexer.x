@@ -69,23 +69,23 @@ tokens :-
     "in"                            { \_    -> yield In                        }
     "do"                            { \_    -> yield Do                        }
     "#Natural"                      { \_    -> yield Nat                       }
-    "#List"                         { \_    -> yield List                      }
+    "#Vector"                       { \_    -> yield List                      }
     "#Cmd"                          { \_    -> yield Cmd                       }
     "#Path"                         { \_    -> yield Path                      }
     "#Natural/(+)"                  { \_    -> yield NatPlus                   }
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
-    "#List/(++)"                    { \_    -> yield ListAppend                }
-    "#List/fold"                    { \_    -> yield ListFold                  }
-    "#List/head"                    { \_    -> yield ListHead                  }
-    "#List/indexed"                 { \_    -> yield ListIndexed               }
-    "#List/join"                    { \_    -> yield ListJoin                  }
-    "#List/last"                    { \_    -> yield ListLast                  }
-    "#List/length"                  { \_    -> yield ListLength                }
-    "#List/map"                     { \_    -> yield ListMap                   }
-    "#List/replicate"               { \_    -> yield ListReplicate             }
-    "#List/reverse"                 { \_    -> yield ListReverse               }
-    "#List/splitAt"                 { \_    -> yield ListSplitAt               }
-    "#List/takeWhile"               { \_    -> yield ListTakeWhile             }
+    "#Vector/(++)"                  { \_    -> yield ListAppend                }
+    "#Vector/fold"                  { \_    -> yield ListFold                  }
+    "#Vector/head"                  { \_    -> yield ListHead                  }
+    "#Vector/indexed"               { \_    -> yield ListIndexed               }
+    "#Vector/join"                  { \_    -> yield ListJoin                  }
+    "#Vector/last"                  { \_    -> yield ListLast                  }
+    "#Vector/length"                { \_    -> yield ListLength                }
+    "#Vector/map"                   { \_    -> yield ListMap                   }
+    "#Vector/replicate"             { \_    -> yield ListReplicate             }
+    "#Vector/reverse"               { \_    -> yield ListReverse               }
+    "#Vector/splitAt"               { \_    -> yield ListSplitAt               }
+    "#Vector/takeWhile"             { \_    -> yield ListTakeWhile             }
     $digit+                         { \text -> yield (Number (toInt text))     }
     $fst $label* | "(" $opchar+ ")" { \text -> yield (Label text)              }
     "https://" $nonwhite+           { \text -> yield (URL text)                }

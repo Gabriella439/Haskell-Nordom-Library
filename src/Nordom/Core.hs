@@ -202,31 +202,31 @@ data Expr a
     | NatTimes
     -- | > ListLit t [x, y, z]             ~  [nil t,x,y,z]
     | ListLit (Expr a) (Vector (Expr a))
-    -- | > List                            ~  #List
+    -- | > List                            ~  #Vector
     | List
-    -- | > ListAppend                      ~  #List/(++)
+    -- | > ListAppend                      ~  #Vector/(++)
     | ListAppend
-    -- | > ListFold                        ~  #List/fold
+    -- | > ListFold                        ~  #Vector/fold
     | ListFold
-    -- | > ListHead                        ~  #List/head
+    -- | > ListHead                        ~  #Vector/head
     | ListHead
-    -- | > ListJoin                        ~  #List/join
+    -- | > ListJoin                        ~  #Vector/join
     | ListJoin
-    -- | > ListIndexed                     ~  #List/indexed
+    -- | > ListIndexed                     ~  #Vector/indexed
     | ListIndexed
-    -- | > ListLast                        ~  #List/last
+    -- | > ListLast                        ~  #Vector/last
     | ListLast
-    -- | > ListLength                      ~  #List/length
+    -- | > ListLength                      ~  #Vector/length
     | ListLength
-    -- | > ListMap                         ~  #List/map
+    -- | > ListMap                         ~  #Vector/map
     | ListMap
-    -- | > ListReplicate                   ~  #List/replicate
+    -- | > ListReplicate                   ~  #Vector/replicate
     | ListReplicate
-    -- | > ListReverse                     ~  #List/reverse
+    -- | > ListReverse                     ~  #Vector/reverse
     | ListReverse
-    -- | > ListSplitAt                     ~  #List/splitAt
+    -- | > ListSplitAt                     ~  #Vector/splitAt
     | ListSplitAt
-    -- | > ListTakeWhile                   ~  #List/takeWhile
+    -- | > ListTakeWhile                   ~  #Vector/takeWhile
     | ListTakeWhile
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
@@ -475,19 +475,19 @@ instance Buildable a => Buildable (Expr a)
                 <>  build t
                 <>  foldMap (\x -> ", " <> build x) xs
                 <>  "]"
-            List              -> "#List"
-            ListAppend        -> "#List/(++)"
-            ListFold          -> "#List/fold"
-            ListHead          -> "#List/head"
-            ListIndexed       -> "#List/indexed"
-            ListJoin          -> "#List/join"
-            ListLast          -> "#List/last"
-            ListLength        -> "#List/length"
-            ListMap           -> "#List/map"
-            ListReplicate     -> "#List/replicate"
-            ListReverse       -> "#List/reverse"
-            ListSplitAt       -> "#List/splitAt"
-            ListTakeWhile     -> "#List/takeWhile"
+            List              -> "#Vector"
+            ListAppend        -> "#Vector/(++)"
+            ListFold          -> "#Vector/fold"
+            ListHead          -> "#Vector/head"
+            ListIndexed       -> "#Vector/indexed"
+            ListJoin          -> "#Vector/join"
+            ListLast          -> "#Vector/last"
+            ListLength        -> "#Vector/length"
+            ListMap           -> "#Vector/map"
+            ListReplicate     -> "#Vector/replicate"
+            ListReverse       -> "#Vector/reverse"
+            ListSplitAt       -> "#Vector/splitAt"
+            ListTakeWhile     -> "#Vector/takeWhile"
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
