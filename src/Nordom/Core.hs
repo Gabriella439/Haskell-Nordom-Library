@@ -194,11 +194,11 @@ data Expr a
     | App (Expr a) (Expr a)
     -- | > NatLit  n                       ~  n
     | NatLit !Integer
-    -- | > Nat                             ~  #Nat
+    -- | > Nat                             ~  #Natural
     | Nat
-    -- | > NatPlus                         ~  #Nat/(+)
+    -- | > NatPlus                         ~  #Natural/(+)
     | NatPlus
-    -- | > NatTimes                        ~  #Nat/(*)
+    -- | > NatTimes                        ~  #Natural/(*)
     | NatTimes
     -- | > ListLit t [x, y, z]             ~  [nil t,x,y,z]
     | ListLit (Expr a) (Vector (Expr a))
@@ -467,9 +467,9 @@ instance Buildable a => Buildable (Expr a)
                 <>  go True False f <> " " <> go True True a
                 <>  (if parenApp then ")" else "")
             NatLit n          -> build n
-            Nat               -> "#Nat"
-            NatPlus           -> "#Nat/(+)"
-            NatTimes          -> "#Nat/(*)"
+            Nat               -> "#Natural"
+            NatPlus           -> "#Natural/(+)"
+            NatTimes          -> "#Natural/(*)"
             ListLit t xs      ->
                     "[nil "
                 <>  build t

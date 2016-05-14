@@ -68,12 +68,12 @@ tokens :-
     "="                             { \_    -> yield Equals                    }
     "in"                            { \_    -> yield In                        }
     "do"                            { \_    -> yield Do                        }
-    "#Nat"                          { \_    -> yield Nat                       }
+    "#Natural"                      { \_    -> yield Nat                       }
     "#List"                         { \_    -> yield List                      }
     "#Cmd"                          { \_    -> yield Cmd                       }
     "#Path"                         { \_    -> yield Path                      }
-    "#Nat/(+)"                      { \_    -> yield NatPlus                   }
-    "#Nat/(*)"                      { \_    -> yield NatTimes                  }
+    "#Natural/(+)"                  { \_    -> yield NatPlus                   }
+    "#Natural/(*)"                  { \_    -> yield NatTimes                  }
     "#List/(++)"                    { \_    -> yield ListAppend                }
     "#List/fold"                    { \_    -> yield ListFold                  }
     "#List/head"                    { \_    -> yield ListHead                  }
