@@ -122,6 +122,7 @@ expr = mdo
             <*> (bind <* match Lexer.CloseBrace)
         <|> match Lexer.Nat           *> pure Nat
         <|> match Lexer.NatEq         *> pure NatEq
+        <|> match Lexer.NatFold       *> pure NatFold
         <|> match Lexer.NatLessEq     *> pure NatLessEq
         <|> match Lexer.NatPlus       *> pure NatPlus
         <|> match Lexer.NatTimes      *> pure NatTimes

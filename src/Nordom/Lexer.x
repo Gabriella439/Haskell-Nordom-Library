@@ -73,6 +73,7 @@ tokens :-
     "#Cmd"                          { \_    -> yield Cmd                       }
     "#Path"                         { \_    -> yield Path                      }
     "#Natural/(==)"                 { \_    -> yield NatEq                     }
+    "#Natural/fold"                 { \_    -> yield NatFold                   }
     "#Natural/(<=)"                 { \_    -> yield NatLessEq                 }
     "#Natural/(+)"                  { \_    -> yield NatPlus                   }
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
@@ -221,6 +222,7 @@ data Token
     | Do
     | Nat
     | NatEq
+    | NatFold
     | NatLessEq
     | NatPlus
     | NatTimes

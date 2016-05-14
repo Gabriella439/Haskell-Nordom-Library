@@ -198,6 +198,8 @@ data Expr a
     | Nat
     -- | > NatEq                           ~  #Natural/(==)
     | NatEq
+    -- | > NatFold                         ~  #Natural/fold
+    | NatFold
     -- | > NatLessEq                       ~  #Natural/(<=)
     | NatLessEq
     -- | > NatPlus                         ~  #Natural/(+)
@@ -257,6 +259,7 @@ instance Applicative Expr where
         NatLit n          -> NatLit n
         Nat               -> Nat
         NatEq             -> NatEq
+        NatFold           -> NatFold
         NatLessEq         -> NatLessEq
         NatPlus           -> NatPlus
         NatTimes          -> NatTimes
@@ -307,6 +310,7 @@ instance Monad Expr where
         NatLit n          -> NatLit n
         Nat               -> Nat
         NatEq             -> NatEq
+        NatFold           -> NatFold
         NatLessEq         -> NatLessEq
         NatPlus           -> NatPlus
         NatTimes          -> NatTimes
@@ -388,6 +392,7 @@ instance Eq a => Eq (Expr a) where
             return (nL == nR)
         go Nat Nat = return True
         go NatEq NatEq = return True
+        go NatFold NatFold = return True
         go NatLessEq NatLessEq = return True
         go NatPlus NatPlus = return True
         go NatTimes NatTimes = return True
@@ -484,6 +489,7 @@ instance Buildable a => Buildable (Expr a)
             NatLit n          -> build n
             Nat               -> "#Natural"
             NatEq             -> "#Natural/(==)"
+            NatFold           -> "#Natural/fold"
             NatLessEq         -> "#Natural/(<=)"
             NatPlus           -> "#Natural/(+)"
             NatTimes          -> "#Natural/(*)"
@@ -545,6 +551,7 @@ shift d ! v      (App f a          ) = App f' a'
 shift _ ! _      (NatLit n         ) = NatLit n
 shift _ ! _       Nat                = Nat
 shift _ ! _       NatEq              = NatEq
+shift _ ! _       NatFold            = NatFold
 shift _ ! _       NatLessEq          = NatLessEq
 shift _ ! _       NatPlus            = NatPlus
 shift _ ! _       NatTimes           = NatTimes
@@ -622,6 +629,7 @@ subst ! v      e  (App f a          ) = App f' a'
 subst ! _      _  (NatLit n         ) = NatLit n
 subst ! _      _   Nat                = Nat
 subst ! _      _   NatEq              = NatEq
+subst ! _      _   NatFold            = NatFold
 subst ! _      _   NatLessEq          = NatLessEq
 subst ! _      _   NatPlus            = NatPlus
 subst ! _      _   NatTimes           = NatTimes
@@ -702,6 +710,7 @@ freeIn ! v      (App f a          ) = freeIn v f || freeIn v a
 freeIn ! _      (NatLit _         ) = False
 freeIn ! _       Nat                = False
 freeIn ! _       NatEq              = False
+freeIn ! _       NatFold            = False
 freeIn ! _       NatLessEq          = False
 freeIn ! _       NatPlus            = False
 freeIn ! _       NatTimes           = False
@@ -766,6 +775,11 @@ normalize e = case e of
         _          -> case App f' a' of
             App (App NatEq (NatLit m)) (NatLit n) ->
                 encodeBool (m == n)
+            App (App (App (App NatFold (NatLit n0)) _) _Succ) _Zero ->
+                go n0 _Zero
+              where
+                go 0 !e' = e'
+                go n !e' = go (n - 1) (normalize (App _Succ e'))
             App (App NatLessEq (NatLit m)) (NatLit n) ->
                 encodeBool (m <= n)
             App (App NatPlus (NatLit m)) (NatLit n) ->
@@ -886,6 +900,7 @@ normalize e = case e of
     NatLit n          -> n `seq` NatLit n
     Nat               -> Nat
     NatEq             -> NatEq
+    NatFold           -> NatFold
     NatLessEq         -> NatLessEq
     NatPlus           -> NatPlus
     NatTimes          -> NatTimes
@@ -1003,6 +1018,11 @@ typeWith ctx e = case e of
     NatLit _          -> return Nat
     Nat               -> return (Const Star)
     NatEq             -> return (Pi "_" Nat (Pi "_" Nat bool))
+    NatFold           ->
+        return
+            (Pi "_" Nat
+                (Pi "a" (Const Star)
+                    (Pi "_" (Pi "_" "a" "a") (Pi "_" "a" "a")) ) )
     NatLessEq         -> return (Pi "_" Nat (Pi "_" Nat bool))
     NatPlus           -> return (Pi "_" Nat (Pi "_" Nat Nat))
     NatTimes          -> return (Pi "_" Nat (Pi "_" Nat Nat))
