@@ -206,6 +206,8 @@ data Expr a
     | List
     -- | > ListAppend                      ~  #Vector/(++)
     | ListAppend
+    -- | > ListEq                          ~  #Vector/(==)
+    | ListEq
     -- | > ListFold                        ~  #Vector/fold
     | ListFold
     -- | > ListHead                        ~  #Vector/head
@@ -259,6 +261,7 @@ instance Applicative Expr where
                 return (e <*> mx)
         List              -> List
         ListAppend        -> ListAppend
+        ListEq            -> ListEq
         ListFold          -> ListFold
         ListHead          -> ListHead
         ListIndexed       -> ListIndexed
@@ -306,6 +309,7 @@ instance Monad Expr where
                 return (e >>= k)
         List              -> List
         ListAppend        -> ListAppend
+        ListEq            -> ListEq
         ListFold          -> ListFold
         ListHead          -> ListHead
         ListIndexed       -> ListIndexed
@@ -384,6 +388,7 @@ instance Eq a => Eq (Expr a) where
                 else return False
         go List List = return True
         go ListAppend ListAppend = return True
+        go ListEq ListEq = return True
         go ListFold ListFold = return True
         go ListHead ListHead = return True
         go ListIndexed ListIndexed = return True
@@ -477,6 +482,7 @@ instance Buildable a => Buildable (Expr a)
                 <>  "]"
             List              -> "#Vector"
             ListAppend        -> "#Vector/(++)"
+            ListEq            -> "#Vector/(==)"
             ListFold          -> "#Vector/fold"
             ListHead          -> "#Vector/head"
             ListIndexed       -> "#Vector/indexed"
@@ -534,6 +540,7 @@ shift d ! v      (ListLit t es     ) = ListLit t' es'
     es' = Vector.map (shift d v) es
 shift _ ! _       List               = List
 shift _ ! _       ListAppend         = ListAppend
+shift _ ! _       ListEq             = ListEq
 shift _ ! _       ListFold           = ListFold
 shift _ ! _       ListHead           = ListHead
 shift _ ! _       ListIndexed        = ListIndexed
@@ -608,6 +615,7 @@ subst ! v      e  (ListLit t es     ) = ListLit t' es'
     es' = Vector.map (subst v e) es
 subst ! _      _   List               = List
 subst ! _      _   ListAppend         = ListAppend
+subst ! _      _   ListEq             = ListEq
 subst ! _      _   ListFold           = ListFold
 subst ! _      _   ListHead           = ListHead
 subst ! _      _   ListIndexed        = ListIndexed
@@ -682,6 +690,7 @@ freeIn ! _       NatTimes           = False
 freeIn ! v      (ListLit t es     ) = freeIn v t || any (freeIn v) es
 freeIn ! _       List               = False
 freeIn ! _       ListAppend         = False
+freeIn ! _       ListEq             = False
 freeIn ! _       ListFold           = False
 freeIn ! _       ListHead           = False
 freeIn ! _       ListIndexed        = False
@@ -743,6 +752,21 @@ normalize e = case e of
                 NatLit (m * n)
             App (App (App ListAppend t) (ListLit _ xs)) (ListLit _ ys) ->
                 normalize (ListLit t ((Vector.++) xs ys))
+            App (App (App (App ListEq _) eq) (ListLit _ xs)) (ListLit _ ys) ->
+                if Vector.length xs == Vector.length ys
+                then
+                    if Vector.all extract0 bs
+                    then encodeBool (Vector.all extract1 bs)
+                    else App f' a'
+                else encodeBool False
+              where
+                merge x y = decodeBool (normalize (App (App eq x) y))
+
+                bs = Vector.zipWith merge xs ys
+
+                extract0 x = x == Just True || x == Just False
+
+                extract1 x = x == Just True
             App (App (App (App ListFold _) (ListLit _ es)) p) z ->
                 Vector.foldl' step (normalize z) es
               where
@@ -844,6 +868,7 @@ normalize e = case e of
     ListLit t es      -> ListLit (normalize t) (Vector.map normalize es)
     List              -> List
     ListAppend        -> ListAppend
+    ListEq            -> ListEq
     ListFold          -> ListFold
     ListHead          -> ListHead
     ListIndexed       -> ListIndexed
@@ -899,6 +924,12 @@ decodeBool
     c2 = Context.insert true0  BoolCtxTrue c1
     c3 = Context.insert false0 BoolCtxFalse c2
 decodeBool _ = Nothing
+
+encodeBool :: Bool -> Expr a
+encodeBool True  =
+    Lam "Bool" (Const Star) (Lam "True" "Bool" (Lam "False" "Bool" "True"))
+encodeBool False =
+    Lam "Bool" (Const Star) (Lam "True" "Bool" (Lam "False" "Bool" "False"))
 
 {-| Type-check an expression and return the expression's type if type-checking
     suceeds or an error if type-checking fails
@@ -969,6 +1000,11 @@ typeWith ctx e = case e of
             (Pi "a" (Const Star)
                 (Pi "_" (App List "a")
                     (Pi "_" (App List "a") (App List "a")) ) )
+    ListEq            ->
+        return
+            (Pi "a" (Const Star)
+                (Pi "_" (Pi "_" "a" (Pi "_" "a" bool))
+                    (Pi "_" (App List "a") (Pi "_" (App List "a") bool) ) ) )
     ListFold          ->
         return
             (Pi "m" (Const Star)

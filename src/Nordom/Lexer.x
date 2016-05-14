@@ -75,6 +75,7 @@ tokens :-
     "#Natural/(+)"                  { \_    -> yield NatPlus                   }
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
     "#Vector/(++)"                  { \_    -> yield ListAppend                }
+    "#Vector/(==)"                  { \_    -> yield ListEq                    }
     "#Vector/fold"                  { \_    -> yield ListFold                  }
     "#Vector/head"                  { \_    -> yield ListHead                  }
     "#Vector/indexed"               { \_    -> yield ListIndexed               }
@@ -221,6 +222,7 @@ data Token
     | NatTimes
     | List
     | ListAppend
+    | ListEq
     | ListFold
     | ListHead
     | ListIndexed
