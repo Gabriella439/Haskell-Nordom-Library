@@ -74,6 +74,7 @@ tokens :-
     "#Path"                         { \_    -> yield Path                      }
     "#Natural/(+)"                  { \_    -> yield NatPlus                   }
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
+    "#Natural/(==)"                 { \_    -> yield NatEq                     }
     "#Vector/(++)"                  { \_    -> yield ListAppend                }
     "#Vector/(==)"                  { \_    -> yield ListEq                    }
     "#Vector/fold"                  { \_    -> yield ListFold                  }
@@ -220,6 +221,7 @@ data Token
     | Nat
     | NatPlus
     | NatTimes
+    | NatEq
     | List
     | ListAppend
     | ListEq

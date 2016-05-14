@@ -123,6 +123,7 @@ expr = mdo
         <|> match Lexer.Nat           *> pure Nat
         <|> match Lexer.NatPlus       *> pure NatPlus
         <|> match Lexer.NatTimes      *> pure NatTimes
+        <|> match Lexer.NatEq         *> pure NatEq
         <|> match Lexer.List          *> pure List
         <|> match Lexer.ListAppend    *> pure ListAppend
         <|> match Lexer.ListEq        *> pure ListEq
