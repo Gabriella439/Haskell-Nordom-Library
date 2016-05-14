@@ -78,7 +78,7 @@ tokens :-
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
     "#Vector/(++)"                  { \_    -> yield ListAppend                }
     "#Vector/(==)"                  { \_    -> yield ListEq                    }
-    "#Vector/fold"                  { \_    -> yield ListFold                  }
+    "#Vector/foldr"                 { \_    -> yield ListFold                  }
     "#Vector/head"                  { \_    -> yield ListHead                  }
     "#Vector/indexed"               { \_    -> yield ListIndexed               }
     "#Vector/join"                  { \_    -> yield ListJoin                  }

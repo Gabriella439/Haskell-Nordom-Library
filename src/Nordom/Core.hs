@@ -212,7 +212,7 @@ data Expr a
     | ListAppend
     -- | > ListEq                          ~  #Vector/(==)
     | ListEq
-    -- | > ListFold                        ~  #Vector/fold
+    -- | > ListFold                        ~  #Vector/foldr
     | ListFold
     -- | > ListHead                        ~  #Vector/head
     | ListHead
@@ -495,7 +495,7 @@ instance Buildable a => Buildable (Expr a)
             List              -> "#Vector"
             ListAppend        -> "#Vector/(++)"
             ListEq            -> "#Vector/(==)"
-            ListFold          -> "#Vector/fold"
+            ListFold          -> "#Vector/foldr"
             ListHead          -> "#Vector/head"
             ListIndexed       -> "#Vector/indexed"
             ListJoin          -> "#Vector/join"
