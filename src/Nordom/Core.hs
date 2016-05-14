@@ -789,8 +789,8 @@ normalize e = case e of
                 extract0 x = x == Just True || x == Just False
 
                 extract1 x = x == Just True
-            App (App (App (App ListFold _) (ListLit _ es)) p) z ->
-                Vector.foldl' step (normalize z) es
+            App (App (App (App (App ListFold _) (ListLit _ es)) _) p) z ->
+                Vector.foldr' step (normalize z) es
               where
                 -- Special-case binary associative functions here for extra
                 -- speed
@@ -805,7 +805,7 @@ normalize e = case e of
                 stepTimes (NatLit x) (NatLit y) = NatLit (x * y)
                 stepTimes         x          y  = stepDefault x y
 
-                stepDefault x e' = normalize (App (App p x) e')
+                stepDefault x xs = normalize (App (App p x) xs)
             App (App ListHead t) (ListLit _ es) ->
                 Lam "Maybe" (Const Star)
                     (Lam "Just" (Pi "_" t' "Maybe")
@@ -1033,10 +1033,11 @@ typeWith ctx e = case e of
                     (Pi "_" (App List "a") (Pi "_" (App List "a") bool) ) ) )
     ListFold          ->
         return
-            (Pi "m" (Const Star)
-                (Pi "_" (App List "m")
-                    (Pi "_" (Pi "_" "m" (Pi "_" "m" "m"))
-                        (Pi "_" "m" "m") ) ) )
+            (Pi "a" (Const Star)
+                (Pi "_" (App List "a")
+                    (Pi "Vector" (Const Star)
+                        (Pi "_" (Pi "_" "a" (Pi "_" "Vector" "Vector"))
+                            (Pi "_" "Vector" "Vector") ) ) ) )
     ListHead          ->
         return
             (Pi "a" (Const Star)
