@@ -2,8 +2,8 @@
 ->  \(f       : a -> ../Bool                         )
 ->  \(xs      : ../Vector a                          )
 ->  \(Maybe   : *                                    )
-->  \(Just    : forall (_Just : ../Natural ) -> Maybe)
 ->  \(Nothing : Maybe                                )
+->  \(Just    : forall (_Just : ../Natural ) -> Maybe)
 ->  ./head
     (../Prod2 ../Natural a)
     (   ./filter
@@ -14,7 +14,7 @@
         (./indexed a xs)
     )
     Maybe
+    Nothing
     (\(p : ../Prod2 ../Natural a) ->
         p Maybe (\(n : ../Natural ) -> \(_ : a) -> Just n)
     )
-    Nothing

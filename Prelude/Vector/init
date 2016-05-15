@@ -2,8 +2,8 @@
 ->  \(xs      : ../Vector a                          )
 ->  \(Maybe   : *                                    )
 ->  \(Nothing : Maybe                                )
-->  \(Just    : forall (_Just : ../Vector a) -> Maybe)
 ->  \(Nothing : Maybe                                )
+->  \(Just    : forall (_Just : ../Vector a) -> Maybe)
 ->  ./null a xs
     Maybe
     Nothing

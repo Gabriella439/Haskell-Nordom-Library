@@ -4,5 +4,5 @@
 ->  \(xs : ../Vector a       )
 ->  ./find a (eq x) xs
     ../Bool
-    (\(_ : a) -> ../Bool/True )
     ../Bool/False
+    (\(_ : a) -> ../Bool/True )

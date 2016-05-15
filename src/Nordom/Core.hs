@@ -822,8 +822,8 @@ normalize e = case e of
                 stepDefault x xs = normalize (App (App p x) xs)
             App (App ListHead t) (ListLit _ es) ->
                 Lam "Maybe" (Const Star)
-                    (Lam "Just" (Pi "_" t' "Maybe")
-                        (Lam "Nothing" "Maybe" e') )
+                    (Lam "Nothing" "Maybe"
+                        (Lam "Just" (Pi "_" t' "Maybe") e') )
              where
                t' = normalize t
                e' =
@@ -849,8 +849,8 @@ normalize e = case e of
                 extract  _             = Nothing
             App (App ListLast t) (ListLit _ es) ->
                 Lam "Maybe" (Const Star)
-                    (Lam "Just" (Pi "_" t' "Maybe")
-                        (Lam "Nothing" "Maybe" e') )
+                    (Lam "Nothing" "Maybe"
+                        (Lam "Just" (Pi "_" t' "Maybe") e') )
              where
                t' = normalize t
                e' =
@@ -1063,8 +1063,8 @@ typeWith ctx e = case e of
             (Pi "a" (Const Star)
                 (Pi "_" (App List "a")
                     (Pi "Maybe" (Const Star)
-                        (Pi "Just" (Pi "_" "a" "Maybe")
-                            (Pi "Nothing" "Maybe" "Maybe") ) ) ) )
+                        (Pi "Nothing" "Maybe"
+                            (Pi "Just" (Pi "_" "a" "Maybe") "Maybe") ) ) ) )
     ListIndexed       ->
         return
             (Pi "a" (Const Star)
@@ -1082,8 +1082,8 @@ typeWith ctx e = case e of
             (Pi "a" (Const Star)
                 (Pi "_" (App List "a")
                     (Pi "Maybe" (Const Star)
-                        (Pi "Just" (Pi "_" "a" "Maybe")
-                            (Pi "Nothing" "Maybe" "Maybe") ) ) ) )
+                        (Pi "Nothing" "Maybe"
+                            (Pi "Just" (Pi "_" "a" "Maybe") "Maybe") ) ) ) )
     ListLength        ->
         return (Pi "a" (Const Star) (Pi "_" (App List "a") Nat))
     ListMap           ->

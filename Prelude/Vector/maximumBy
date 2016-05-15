@@ -9,6 +9,7 @@
     ->  \(m : ../Maybe a)
     ->  m
         (../Maybe a)
+        (../Maybe/Just a x)
         (\(y : a) ->
             cmp
             x
@@ -18,6 +19,5 @@
             (../Maybe/Just a x)
             (../Maybe/Just a x)
         )
-        (../Maybe/Just a x)
     )
     (../Maybe/Nothing a)
