@@ -1,0 +1,6 @@
+    \(a  : *            )
+->  \(f  : a -> ../Bool )
+->  \(xs : ../Vector a  )
+->  ./span a f xs
+    (../Vector a)
+    (\(_1 : ../Vector a) -> \(_2 : ../Vector a) -> _1)

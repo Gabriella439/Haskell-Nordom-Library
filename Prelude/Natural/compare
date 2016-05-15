@@ -1,0 +1,14 @@
+    \(x : ../Natural )
+->  \(y : ../Natural )
+->  ../Natural/(<=)
+    x
+    y
+    ../Ordering
+    (   ../Natural/(==)
+        x
+        y
+        ../Ordering
+        ../Ordering/EQ
+        ../Ordering/LT
+    )
+    ../Ordering/GT

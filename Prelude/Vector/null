@@ -1,0 +1,6 @@
+    \(a  : *          )
+->  \(xs : ../Vector a)
+->  \(Bool : *        )
+->  \(True : Bool     )
+->  \(False : Bool    )
+->  ./head a xs Bool (\(_ : a) -> False) True

@@ -1,0 +1,4 @@
+    \(a  : *            )
+->  \(f  : a -> ../Bool )
+->  \(xs : ../Vector a  )
+->  ./reverse a (./takeWhile a f (./reverse a xs))

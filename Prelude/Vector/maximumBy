@@ -1,0 +1,23 @@
+    \(a       : *                     )
+->  \(cmp     : a -> a -> ../Ordering )
+->  \(xs      : ../Vector a           )
+->  ../Vector/foldr
+    a
+    xs
+    (../Maybe a)
+    (   \(x : a         )
+    ->  \(m : ../Maybe a)
+    ->  m
+        (../Maybe a)
+        (\(y : a) ->
+            cmp
+            x
+            y
+            (../Maybe a)
+            (../Maybe/Just a y)
+            (../Maybe/Just a x)
+            (../Maybe/Just a x)
+        )
+        (../Maybe/Just a x)
+    )
+    (../Maybe/Nothing a)

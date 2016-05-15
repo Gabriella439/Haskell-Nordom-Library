@@ -1,0 +1,11 @@
+    \(a  : *              )
+->  \(f  : a -> ../Bool   )
+->  \(xs : ../Vector a    )
+->  ./join
+    a
+    (   ./map
+        a
+        (../Vector a)
+        (\(x : a) -> f x (../Vector a) [nil a, x] [nil a])
+        xs
+    )

@@ -1,0 +1,9 @@
+    \(a       : *                                                 )
+->  \(xs      : ../Vector a                                       )
+->  \(Maybe   : *                                                 )
+->  \(Just    : forall (_Just : ../Prod2 a (../Vector a)) -> Maybe)
+->  \(Nothing : Maybe                                             )
+->  ./head a xs
+    Maybe
+    (\(x : a) -> Just (../Prod2/Make a (../Vector a) x (./drop 1 a xs)))
+    Nothing

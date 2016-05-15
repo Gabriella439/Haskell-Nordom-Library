@@ -1,0 +1,4 @@
+    \(a  : *          )
+->  \(xs : ../Vector a)
+->  \(x  : a          )
+->  ../Vector/(++) a xs [nil a, x]

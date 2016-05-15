@@ -1,0 +1,4 @@
+    \(n  : ../Natural )
+->  \(a  : *          )
+->  \(xs : ../Vector a)
+->  ./head a (./drop n a xs)

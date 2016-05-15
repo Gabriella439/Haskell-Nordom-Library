@@ -1,0 +1,6 @@
+\(a : *) ->
+
+type Maybe
+data Just (_Just : a)
+data Nothing
+in   Just

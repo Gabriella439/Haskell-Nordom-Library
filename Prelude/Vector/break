@@ -1,0 +1,4 @@
+    \(a  : *            )
+->  \(f  : a -> ../Bool )
+->  \(xs : ../Vector a  )
+->  ./span a (\(x : a) -> ../Bool/not (f x)) xs

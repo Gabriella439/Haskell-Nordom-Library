@@ -1,0 +1,1 @@
+forall (Prod0 : *) -> forall (Make : Prod0) -> Prod0

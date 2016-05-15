@@ -1,0 +1,5 @@
+    \(a  : *               )
+->  \(b  : *               )
+->  \(f  : a -> ../Vector b)
+->  \(xs : ../Vector a     )
+->  ./join b (./map a (../Vector b) f xs)

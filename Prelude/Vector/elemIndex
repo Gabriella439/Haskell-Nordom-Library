@@ -1,0 +1,5 @@
+    \(a  : *                 )
+->  \(eq : a -> a -> ../Bool )
+->  \(x  : a                 )
+->  \(xs : ../Vector a       )
+->  ./findIndex a (eq x) xs

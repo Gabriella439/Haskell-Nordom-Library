@@ -1,0 +1,20 @@
+    \(a       : *                                    )
+->  \(f       : a -> ../Bool                         )
+->  \(xs      : ../Vector a                          )
+->  \(Maybe   : *                                    )
+->  \(Just    : forall (_Just : ../Natural ) -> Maybe)
+->  \(Nothing : Maybe                                )
+->  ./head
+    (../Prod2 ../Natural a)
+    (   ./filter
+        (../Prod2 ../Natural a)
+        (\(p : ../Prod2 ../Natural a) ->
+            p ../Bool (\(_ : ../Natural ) -> \(x : a) -> f x)
+        )
+        (./indexed a xs)
+    )
+    Maybe
+    (\(p : ../Prod2 ../Natural a) ->
+        p Maybe (\(n : ../Natural ) -> \(_ : a) -> Just n)
+    )
+    Nothing

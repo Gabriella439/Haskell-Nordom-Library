@@ -1,0 +1,3 @@
+    \(x : ../Natural )
+->  \(y : ../Natural )
+->  ../Bool/not (./(==) x y)

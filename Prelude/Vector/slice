@@ -1,0 +1,5 @@
+    \(m  : ../Natural )
+->  \(n  : ../Natural )
+->  \(a  : *          )
+->  \(xs : ../Vector a)
+->  ./take n a (./drop m a xs)

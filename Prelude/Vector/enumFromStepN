@@ -1,0 +1,8 @@
+    \(x : ../Natural )
+->  \(y : ../Natural )
+->  \(n : ../Natural )
+->  ./map
+    ../Natural
+    ../Natural
+    (\(z : ../Natural ) -> ../Natural/(+) x (../Natural/(*) y z))
+    (./enum n)

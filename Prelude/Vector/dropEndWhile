@@ -1,0 +1,4 @@
+    \(a  : *            )
+->  \(f  : a -> ../Bool )
+->  \(xs : ../Vector a  )
+->  ./reverse a (./dropWhile a f (./reverse a xs))

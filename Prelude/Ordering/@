@@ -1,0 +1,1 @@
+∀(Ordering : *) → ∀(LT : Ordering) → ∀(EQ : Ordering) → ∀(GT : Ordering) → Ordering

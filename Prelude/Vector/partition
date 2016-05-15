@@ -1,0 +1,8 @@
+    \(a  : *            )
+->  \(f  : a -> ../Bool )
+->  \(xs : ../Vector a  )
+->  ../Prod2/Make
+    (../Vector a)
+    (../Vector a)
+    (./filter a f xs)
+    (./filter a (\(x : a) -> ../Bool/not (f x)) xs)

@@ -1,0 +1,4 @@
+    \(a : *              )
+->  \(f : a -> ../Bool   )
+->  \(xs : ../Vector a   )
+->  ./head a (./filter a f xs)

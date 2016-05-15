@@ -1,0 +1,4 @@
+    \(a : *            )
+->  \(f : a -> ../Bool )
+->  \(xs : ../Vector a )
+->  ./and (./map a ../Bool f xs)

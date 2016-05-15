@@ -1,0 +1,9 @@
+    \(a  : *                   )
+->  \(b  : *                   )
+->  \(f  : ../Natural -> a -> b)
+->  \(xs : ../Vector a         )
+->  ./map
+    (../Prod2 ../Natural a)
+    b
+    (\(p : ../Prod2 ../Natural a) -> p b f)
+    (./indexed a xs)

@@ -1,0 +1,16 @@
+    \(a  : *            )
+->  \(f  : a -> ../Bool )
+->  \(xs : ../Vector a  )
+->  ./map
+    (../Prod2 ../Natural a)
+    ../Natural
+    (\(p : ../Prod2 ../Natural a) ->
+        p ../Natural (\(n : ../Natural ) -> \(_ : a) -> n)
+    )
+    (   ./filter
+        (../Prod2 ../Natural a)
+        (\(p : ../Prod2 ../Natural a) ->
+            p ../Bool (\(_ : ../Natural ) -> \(x : a) -> f x)
+        )
+        (./indexed a xs)
+    )

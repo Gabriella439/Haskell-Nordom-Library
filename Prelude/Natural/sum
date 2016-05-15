@@ -1,0 +1,2 @@
+    \(xs : ../Vector ../Natural )
+->  ../Vector/foldr ../Natural xs ../Natural ./(+) 0

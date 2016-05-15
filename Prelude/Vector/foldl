@@ -1,0 +1,11 @@
+    \(a      : *                                                    )
+->  \(xs     : ../Vector a                                          )
+->  \(Vector : *                                                    )
+->  \(Snoc   : forall (tail : Vector) -> forall (head : a) -> Vector)
+->  \(Nil    : Vector                                               )
+->  ./foldr
+    a
+    (./reverse a xs)
+    Vector
+    (\(head : a) -> \(tail : Vector) -> Snoc tail head)
+    Nil

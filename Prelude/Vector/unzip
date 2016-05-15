@@ -1,0 +1,18 @@
+    \(a     : *                                                              )
+->  \(b     : *                                                              )
+->  \(xys   : ../Vector (../Prod2 a b)                                       )
+->  \(Prod2 : *                                                              )
+->  \(Make  : forall (_1 : ../Vector a) -> forall (_2 : ../Vector b) -> Prod2)
+->  Make
+    (   ./map
+        (../Prod2 a b)
+        a
+        (\(p : ../Prod2 a b) -> p a (\(_1 : a) -> \(_2 : b) -> _1))
+        xys
+    )
+    (   ./map
+        (../Prod2 a b)
+        b
+        (\(p : ../Prod2 a b) -> p b (\(_1 : a) -> \(_2 : b) -> _2))
+        xys
+    )

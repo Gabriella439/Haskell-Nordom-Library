@@ -1,0 +1,8 @@
+    \(a  : *                 )
+->  \(eq : a -> a -> ../Bool )
+->  \(x  : a                 )
+->  \(xs : ../Vector a       )
+->  ./find a (eq x) xs
+    ../Bool
+    (\(_ : a) -> ../Bool/True )
+    ../Bool/False

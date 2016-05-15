@@ -1,0 +1,5 @@
+type Ordering
+data LT
+data EQ
+data GT
+in   EQ

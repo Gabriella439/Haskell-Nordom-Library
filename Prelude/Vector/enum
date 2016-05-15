@@ -1,0 +1,10 @@
+    \(n : ../Natural )
+->  ./map
+    (../Prod2 ../Natural ../Prod0 )
+    ../Natural
+    (\(p : ../Prod2 ../Natural ../Prod0 ) ->
+         p
+         ../Natural
+         (\(n : ../Natural ) -> \(_ : ../Prod0 ) -> n)
+    )
+    (./indexed ../Prod0 (./replicate n ../Prod0 ../Prod0/Make ))

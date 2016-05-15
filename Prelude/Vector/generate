@@ -1,0 +1,4 @@
+    \(a : *              )
+->  \(n : ../Natural     )
+->  \(f : ../Natural -> a)
+->  ./map ../Natural a f (./enum n)

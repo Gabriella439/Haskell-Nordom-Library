@@ -1,0 +1,3 @@
+    \(x : ../Natural )
+->  \(n : ../Natural )
+->  ./map ../Natural ../Natural (../Natural/(+) x) (./enum n)

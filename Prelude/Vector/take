@@ -1,0 +1,6 @@
+    \(n  : ../Natural )
+->  \(a  : *          )
+->  \(xs : ../Vector a)
+->  ../Vector/splitAt n a xs
+    (../Vector a)
+    (\(_1 : ../Vector a) -> \(_2 : ../Vector a) -> _1)

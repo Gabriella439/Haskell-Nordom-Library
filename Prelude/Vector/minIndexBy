@@ -1,0 +1,25 @@
+    \(a   : *                     )
+->  \(cmp : a -> a -> ../Ordering )
+->  \(xs  : ../Vector a           )
+->  ./minimumBy
+    (../Prod2 ../Natural a)
+    (   \(l : ../Prod2 ../Natural a)
+    ->  \(r : ../Prod2 ../Natural a)
+    ->  l
+        ../Ordering
+        (\(_ : ../Natural ) -> \(x : a) ->
+            r
+            ../Ordering
+            (\(_ : ../Natural ) -> \(y : a) ->
+                cmp x y
+            )
+        )
+    )
+    (./indexed a xs)
+    (../Maybe ../Natural )
+    (\(p : ../Prod2 ../Natural a) ->
+        p
+        (../Maybe ../Natural )
+        (\(n : ../Natural ) -> \(_ : a) -> ../Maybe/Just ../Natural n)
+    )
+    (../Maybe/Nothing ../Natural )

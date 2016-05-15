@@ -1,0 +1,8 @@
+    \(n : ../Natural )
+->  \(a : *          )
+->  \(f : a -> a     )
+->  \(x : a          )
+->  ./generate
+    a
+    (../Natural/(+) 1 n)
+    (\(m : ../Natural ) -> ../Natural/fold m a f x)

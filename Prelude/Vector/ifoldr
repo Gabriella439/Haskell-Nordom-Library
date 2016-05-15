@@ -1,0 +1,14 @@
+    \(a      : *                                  )
+->  \(xs     : ../Vector a                        )
+->  \(Vector : *                                  )
+->  \(Cons   : ../Natural -> a -> Vector -> Vector)
+->  \(Nil    : Vector                             )
+->  ./foldr
+    (../Prod2 ../Natural a)
+    (./indexed a xs)
+    Vector
+    (   \(head : ../Prod2 ../Natural a)
+    ->  \(tail : Vector)
+    ->  head Vector (\(n : ../Natural ) -> \(x : a) -> Cons n x tail)
+    )
+    Nil

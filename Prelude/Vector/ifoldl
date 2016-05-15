@@ -1,0 +1,11 @@
+    \(a      : *                                  )
+->  \(xs     : ../Vector a                        )
+->  \(Vector : *                                  )
+->  \(Snoc   : Vector -> ../Natural -> a -> Vector)
+->  \(Nil    : Vector                             )
+->  ./ifoldr
+    a
+    (./reverse a xs)
+    Vector
+    (\(n : ../Natural ) -> \(head : a) -> \(tail : Vector) -> Snoc tail n head)
+    Nil

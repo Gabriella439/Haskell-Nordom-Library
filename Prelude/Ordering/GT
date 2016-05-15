@@ -1,0 +1,1 @@
+λ(Ordering : *) → λ(LT : Ordering) → λ(EQ : Ordering) → λ(GT : Ordering) → GT

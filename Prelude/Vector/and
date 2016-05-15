@@ -1,0 +1,2 @@
+    \(xs : ../Vector ../Bool )
+->  ./foldr ../Bool xs ../Bool ../Bool/(&&) ../Bool/True
