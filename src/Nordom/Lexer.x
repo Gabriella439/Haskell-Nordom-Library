@@ -75,6 +75,7 @@ tokens :-
     "#Vector"                       { \_    -> yield List                      }
     "#Cmd"                          { \_    -> yield Cmd                       }
     "#Path"                         { \_    -> yield Path                      }
+    "#Char/(==)"                    { \_    -> yield CharEq                    }
     "#Natural/(==)"                 { \_    -> yield NatEq                     }
     "#Natural/fold"                 { \_    -> yield NatFold                   }
     "#Natural/(<=)"                 { \_    -> yield NatLessEq                 }
@@ -239,6 +240,7 @@ data Token
     | Do
     | Char
     | CharLit Char
+    | CharEq
     | Nat
     | NatEq
     | NatFold

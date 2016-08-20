@@ -197,6 +197,8 @@ data Expr a
     | Char
     -- | > CharLit c                       ~  c
     | CharLit Char
+    -- | > CharEq                          ~  #Char/(==)
+    | CharEq
     -- | > NatLit  n                       ~  n
     | NatLit !Integer
     -- | > Nat                             ~  #Natural
@@ -281,6 +283,7 @@ instance Applicative Expr where
         App f a           -> App (f <*> mx) (a <*> mx)
         Char              -> Char
         CharLit c         -> CharLit c
+        CharEq            -> CharEq
         NatLit n          -> NatLit n
         Nat               -> Nat
         NatEq             -> NatEq
@@ -343,6 +346,7 @@ instance Monad Expr where
         App f a           -> App (f >>= k) (a >>= k)
         Char              -> Char
         CharLit c         -> CharLit c
+        CharEq            -> CharEq
         NatLit n          -> NatLit n
         Nat               -> Nat
         NatEq             -> NatEq
@@ -436,6 +440,7 @@ instance Eq a => Eq (Expr a) where
         go Char Char = return True
         go (CharLit x) (CharLit y) = do
             return (x == y)
+        go CharEq CharEq = return True
         go (NatLit nL) (NatLit nR) = do
             return (nL == nR)
         go Nat Nat = return True
@@ -546,6 +551,7 @@ instance Buildable a => Buildable (Expr a)
                 <>  (if parenApp then ")" else "")
             Char              -> "#Char"
             CharLit c         -> build (show c)
+            CharEq            -> "#Char/(==)"
             NatLit n          -> build n
             Nat               -> "#Natural"
             NatEq             -> "#Natural/(==)"
@@ -619,6 +625,7 @@ shift d ! v      (App f a          ) = App f' a'
     a' = shift d v a
 shift _ ! _       Char               = Char
 shift _ ! _      (CharLit c        ) = CharLit c
+shift _ ! _       CharEq             = CharEq
 shift _ ! _      (NatLit n         ) = NatLit n
 shift _ ! _       Nat                = Nat
 shift _ ! _       NatEq              = NatEq
@@ -708,6 +715,7 @@ subst ! v      e  (App f a          ) = App f' a'
     a' = subst v e a
 subst ! _      _   Char               = Char
 subst ! _      _  (CharLit c        ) = CharLit c
+subst ! _      _   CharEq             = CharEq
 subst ! _      _  (NatLit n         ) = NatLit n
 subst ! _      _   Nat                = Nat
 subst ! _      _   NatEq              = NatEq
@@ -800,6 +808,7 @@ freeIn ! v      (App f a          ) = freeIn v f || freeIn v a
 -- The Nordom compiler enforces that all embedded values are closed expressions
 freeIn ! _       Char               = False
 freeIn ! _      (CharLit _        ) = False
+freeIn ! _       CharEq             = False
 freeIn ! _      (NatLit _         ) = False
 freeIn ! _       Nat                = False
 freeIn ! _       NatEq              = False
@@ -875,6 +884,11 @@ normalize e = case e of
           where
             b' = subst (V x 0) (shift 1 (V x 0) a') b
         _          -> case App f' a' of
+            App (App CharEq (CharLit x)) (CharLit y) ->
+                Lam "Bool" (Const Star)
+                    (Lam "True" "Bool"
+                        (Lam "False" "Bool"
+                            (if x == y then "True" else "False") ) )
             App (App NatEq (NatLit m)) (NatLit n) ->
                 encodeBool (m == n)
             App (App (App (App NatFold (NatLit n0)) _) _Succ) _Zero ->
@@ -1002,7 +1016,7 @@ normalize e = case e of
                     (Lam "Nothing" "Maybe"
                         (Lam "Just" (Pi "_" Char "Maybe") e') )
               where
-               e' =
+                e' =
                    if Text.null x
                    then "Nothing"
                    else App "Just" (CharLit (Text.head x))
@@ -1011,7 +1025,7 @@ normalize e = case e of
                     (Lam "Nothing" "Maybe"
                         (Lam "Just" (Pi "_" Char "Maybe") e') )
               where
-               e' =
+                e' =
                    if Text.null x
                    then "Nothing"
                    else App "Just" (CharLit (Text.last x))
@@ -1056,6 +1070,7 @@ normalize e = case e of
         a' = normalize a
     Char              -> Char
     CharLit c         -> c `seq` CharLit c
+    CharEq            -> CharEq
     NatLit n          -> n `seq` NatLit n
     Nat               -> Nat
     NatEq             -> NatEq
@@ -1195,6 +1210,12 @@ typeWith ctx e = case e of
                 Left (TypeError ctx e (TypeMismatch nf_A nf_A'))
     Char              -> return (Const Star)
     CharLit _         -> return Char
+    CharEq            ->
+        return
+            (Pi "_" Char
+                (Pi "_" Char
+                    (Pi "Bool" (Const Star)
+                        (Pi "True" "Bool" (Pi "False" "Bool" "Bool")) ) ))
     NatLit _          -> return Nat
     Nat               -> return (Const Star)
     NatEq             -> return (Pi "_" Nat (Pi "_" Nat bool))

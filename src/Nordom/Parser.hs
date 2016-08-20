@@ -139,6 +139,7 @@ expr = mdo
             <*> (match Lexer.OpenBrace *> many bind)
             <*> (bind <* match Lexer.CloseBrace)
         <|> match Lexer.Char          *> pure Char
+        <|> match Lexer.CharEq        *> pure CharEq
         <|> match Lexer.Nat           *> pure Nat
         <|> match Lexer.NatEq         *> pure NatEq
         <|> match Lexer.NatFold       *> pure NatFold
