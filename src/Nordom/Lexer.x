@@ -83,6 +83,7 @@ tokens :-
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
     "#Text"                         { \_    -> yield Text                      }
     "#Text/(++)"                    { \_    -> yield TextAppend                }
+    "#Text/concatMap"               { \_    -> yield TextConcatMap             }
     "#Text/head"                    { \_    -> yield TextHead                  }
     "#Text/last"                    { \_    -> yield TextLast                  }
     "#Text/length"                  { \_    -> yield TextLength                }
@@ -266,6 +267,7 @@ data Token
     | Text
     | TextLit Text
     | TextAppend
+    | TextConcatMap
     | TextHead
     | TextLast
     | TextLength

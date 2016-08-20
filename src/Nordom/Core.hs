@@ -249,6 +249,8 @@ data Expr a
     | TextLit Text
     -- | > TextAppend                      ~  #Text/(++)
     | TextAppend
+    -- | > TextConcatMap                   ~  #Text/concatMap
+    | TextConcatMap
     -- | > TextHead                        ~  #Text/head
     | TextHead
     -- | > TextLast                        ~  #Text/last
@@ -317,6 +319,7 @@ instance Applicative Expr where
         Text              -> Text
         TextLit t         -> TextLit t
         TextAppend        -> TextAppend
+        TextConcatMap     -> TextConcatMap
         TextHead          -> TextHead
         TextLast          -> TextLast
         TextLength        -> TextLength
@@ -382,6 +385,7 @@ instance Monad Expr where
         Text              -> Text
         TextLit t         -> TextLit t
         TextAppend        -> TextAppend
+        TextConcatMap     -> TextConcatMap
         TextHead          -> TextHead
         TextLast          -> TextLast
         TextLength        -> TextLength
@@ -480,6 +484,7 @@ instance Eq a => Eq (Expr a) where
         go (TextLit x) (TextLit y) = do
             return (x == y)
         go TextAppend TextAppend = return True
+        go TextConcatMap TextConcatMap = return True
         go TextHead TextHead = return True
         go TextLast TextLast = return True
         go TextLength TextLength = return True
@@ -591,6 +596,7 @@ instance Buildable a => Buildable (Expr a)
             Text              -> "#Text"
             TextLit t         -> build (show t)
             TextAppend        -> "#Text/(++)"
+            TextConcatMap     -> "#Text/concatMap"
             TextHead          -> "#Text/head"
             TextLast          -> "#Text/last"
             TextLength        -> "#Text/length"
@@ -666,6 +672,7 @@ shift _ ! _       ListSplitAt        = ListSplitAt
 shift _ ! _       Text               = Text
 shift _ ! _      (TextLit t        ) = TextLit t
 shift _ ! _       TextAppend         = TextAppend
+shift _ ! _       TextConcatMap      = TextConcatMap
 shift _ ! _       TextHead           = TextHead
 shift _ ! _       TextLast           = TextLast
 shift _ ! _       TextLength         = TextLength
@@ -758,6 +765,7 @@ subst ! _      _   ListSplitAt        = ListSplitAt
 subst ! _      _   Text               = Text
 subst ! _      _  (TextLit t        ) = TextLit t
 subst ! _      _   TextAppend         = TextAppend
+subst ! _      _   TextConcatMap      = TextConcatMap
 subst ! _      _   TextHead           = TextHead
 subst ! _      _   TextLast           = TextLast
 subst ! _      _   TextLength         = TextLength
@@ -850,6 +858,7 @@ freeIn ! _       ListSplitAt        = False
 freeIn ! _       Text               = False
 freeIn ! _      (TextLit _        ) = False
 freeIn ! _       TextAppend         = False
+freeIn ! _       TextConcatMap      = False
 freeIn ! _       TextHead           = False
 freeIn ! _       TextLast           = False
 freeIn ! _       TextLength         = False
@@ -1029,6 +1038,16 @@ normalize e = case e of
                     decodeBool (normalize (App predicate x)) == Just True
             App (App TextAppend (TextLit x)) (TextLit y) ->
                 TextLit (x <> y)
+            App (App TextConcatMap k) (TextLit x)
+                | Text.all extract x ->
+                    TextLit (Text.concatMap k' x)
+              where
+                extract c = case normalize (App k (CharLit c)) of
+                    TextLit _ -> True
+                    _         -> False
+
+                k' c = unsafeToText (normalize (App k (CharLit c)))
+
             App TextHead (TextLit x) ->
                 Lam "Maybe" (Const Star)
                     (Lam "Nothing" "Maybe"
@@ -1125,6 +1144,7 @@ normalize e = case e of
     Text              -> Text
     TextLit t         -> t `seq` TextLit t
     TextAppend        -> TextAppend
+    TextConcatMap     -> TextConcatMap
     TextHead          -> TextHead
     TextLast          -> TextLast
     TextLength        -> TextLength
@@ -1153,6 +1173,11 @@ unsafeToChar :: Expr a -> Char
 unsafeToChar (CharLit c) = c
 unsafeToChar  _          =
     error "unsafeToChar: Argument was not a `CharLit`"
+
+unsafeToText :: Expr a -> Text
+unsafeToText (TextLit c) = c
+unsafeToText  _          =
+    error "unsafeToText: Argument was not a `TextLit`"
 
 bool :: Expr a
 bool = Pi "Bool" (Const Star) (Pi "True" "Bool" (Pi "False" "Bool" "Bool"))
@@ -1341,6 +1366,7 @@ typeWith ctx e = case e of
     Text              -> return (Const Star)
     TextLit _         -> return Text
     TextAppend        -> return (Pi "_" Text (Pi "_" Text Text))
+    TextConcatMap     -> return (Pi "_" (Pi "_" Char Text) (Pi "_" Text Text))
     TextHead          ->
         return
             (Pi "_" Text

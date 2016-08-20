@@ -162,6 +162,7 @@ expr = mdo
         <|> match Lexer.ListSplitAt   *> pure ListSplitAt
         <|> match Lexer.Text          *> pure Text
         <|> match Lexer.TextAppend    *> pure TextAppend
+        <|> match Lexer.TextConcatMap *> pure TextConcatMap
         <|> match Lexer.TextHead      *> pure TextHead
         <|> match Lexer.TextLast      *> pure TextLast
         <|> match Lexer.TextLength    *> pure TextLength
