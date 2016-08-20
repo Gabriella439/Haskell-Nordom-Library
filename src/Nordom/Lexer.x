@@ -82,6 +82,8 @@ tokens :-
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
     "#Text"                         { \_    -> yield Text                      }
     "#Text/(++)"                    { \_    -> yield TextAppend                }
+    "#Text/head"                    { \_    -> yield TextHead                  }
+    "#Text/last"                    { \_    -> yield TextLast                  }
     "#Vector/(++)"                  { \_    -> yield ListAppend                }
     "#Vector/(==)"                  { \_    -> yield ListEq                    }
     "#Vector/foldr"                 { \_    -> yield ListFold                  }
@@ -256,6 +258,8 @@ data Token
     | Text
     | TextLit Text
     | TextAppend
+    | TextHead
+    | TextLast
     | Cmd
     | Path
     | Label Text

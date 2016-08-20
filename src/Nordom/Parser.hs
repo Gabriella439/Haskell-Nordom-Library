@@ -161,6 +161,8 @@ expr = mdo
         <|> match Lexer.ListSplitAt   *> pure ListSplitAt
         <|> match Lexer.Text          *> pure Text
         <|> match Lexer.TextAppend    *> pure TextAppend
+        <|> match Lexer.TextHead      *> pure TextHead
+        <|> match Lexer.TextLast      *> pure TextLast
         <|> match Lexer.Cmd           *> pure Cmd
         <|> match Lexer.Path          *> pure Path
         <|> (match Lexer.OpenParen *> expr <* match Lexer.CloseParen)

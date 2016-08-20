@@ -246,6 +246,10 @@ data Expr a
     | TextLit Text
     -- | > TextAppend                      ~  #Text/(++)
     | TextAppend
+    -- | > TextHead                        ~  #Text/head
+    | TextHead
+    -- | > TextLast                        ~  #Text/last
+    | TextLast
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
     -- | > Path                            ~  #Path
@@ -297,6 +301,8 @@ instance Applicative Expr where
         Text              -> Text
         TextLit t         -> TextLit t
         TextAppend        -> TextAppend
+        TextHead          -> TextHead
+        TextLast          -> TextLast
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
             ps' = do
@@ -353,6 +359,8 @@ instance Monad Expr where
         Text              -> Text
         TextLit t         -> TextLit t
         TextAppend        -> TextAppend
+        TextHead          -> TextHead
+        TextLast          -> TextLast
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
             ps' = do
@@ -442,6 +450,8 @@ instance Eq a => Eq (Expr a) where
         go (TextLit x) (TextLit y) = do
             return (x == y)
         go TextAppend TextAppend = return True
+        go TextHead TextHead = return True
+        go TextLast TextLast = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
             let loop ((oL, mL):ls) ((oR, mR):rs) = do
@@ -544,6 +554,8 @@ instance Buildable a => Buildable (Expr a)
             Text              -> "#Text"
             TextLit t         -> build (show t)
             TextAppend        -> "#Text/(++)"
+            TextHead          -> "#Text/head"
+            TextLast          -> "#Text/last"
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
@@ -610,6 +622,8 @@ shift _ ! _       ListSplitAt        = ListSplitAt
 shift _ ! _       Text               = Text
 shift _ ! _      (TextLit t        ) = TextLit t
 shift _ ! _       TextAppend         = TextAppend
+shift _ ! _       TextHead           = TextHead
+shift _ ! _       TextLast           = TextLast
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = shift d v cat
@@ -693,6 +707,8 @@ subst ! _      _   ListSplitAt        = ListSplitAt
 subst ! _      _   Text               = Text
 subst ! _      _  (TextLit t        ) = TextLit t
 subst ! _      _   TextAppend         = TextAppend
+subst ! _      _   TextHead           = TextHead
+subst ! _      _   TextLast           = TextLast
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = subst v e cat
@@ -776,6 +792,8 @@ freeIn ! _       ListSplitAt        = False
 freeIn ! _       Text               = False
 freeIn ! _      (TextLit _        ) = False
 freeIn ! _       TextAppend         = False
+freeIn ! _       TextHead           = False
+freeIn ! _       TextLast           = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
     f (o, m) = freeIn v o || freeIn v m
@@ -942,6 +960,24 @@ normalize e = case e of
                     decodeBool (normalize (App predicate x)) == Just True
             App (App TextAppend (TextLit x)) (TextLit y) ->
                 TextLit (x <> y)
+            App TextHead (TextLit x) ->
+                Lam "Maybe" (Const Star)
+                    (Lam "Nothing" "Maybe"
+                        (Lam "Just" (Pi "_" Char "Maybe") e') )
+              where
+               e' =
+                   if Text.null x
+                   then "Nothing"
+                   else App "Just" (CharLit (Text.head x))
+            App TextLast (TextLit x) ->
+                Lam "Maybe" (Const Star)
+                    (Lam "Nothing" "Maybe"
+                        (Lam "Just" (Pi "_" Char "Maybe") e') )
+              where
+               e' =
+                   if Text.null x
+                   then "Nothing"
+                   else App "Just" (CharLit (Text.last x))
             _ -> App f' a'
       where
         f' = normalize f
@@ -973,6 +1009,8 @@ normalize e = case e of
     Text              -> Text
     TextLit t         -> t `seq` TextLit t
     TextAppend        -> TextAppend
+    TextHead          -> TextHead
+    TextLast          -> TextLast
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
         ps' = do
@@ -1175,6 +1213,18 @@ typeWith ctx e = case e of
     Text              -> return (Const Star)
     TextLit _         -> return Text
     TextAppend        -> return (Pi "_" Text (Pi "_" Text Text))
+    TextHead          ->
+        return
+            (Pi "_" Text
+                (Pi "Maybe" (Const Star)
+                    (Pi "Nothing" "Maybe"
+                        (Pi "Just" (Pi "_" Char "Maybe") "Maybe") ) ) )
+    TextLast          ->
+        return
+            (Pi "_" Text
+                (Pi "Maybe" (Const Star)
+                    (Pi "Nothing" "Maybe"
+                        (Pi "Just" (Pi "_" Char "Maybe") "Maybe") ) ) )
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat
         if k == Pi "_" (Const Star) (Pi "_" (Const Star) (Const Star))
