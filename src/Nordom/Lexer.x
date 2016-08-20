@@ -85,6 +85,8 @@ tokens :-
     "#Text/head"                    { \_    -> yield TextHead                  }
     "#Text/last"                    { \_    -> yield TextLast                  }
     "#Text/pack"                    { \_    -> yield TextPack                  }
+    "#Text/span"                    { \_    -> yield TextSpan                  }
+    "#Text/splitAt"                 { \_    -> yield TextSplitAt               }
     "#Text/unpack"                  { \_    -> yield TextUnpack                }
     "#Vector/(++)"                  { \_    -> yield ListAppend                }
     "#Vector/(==)"                  { \_    -> yield ListEq                    }
@@ -263,6 +265,8 @@ data Token
     | TextHead
     | TextLast
     | TextPack
+    | TextSpan
+    | TextSplitAt
     | TextUnpack
     | Cmd
     | Path

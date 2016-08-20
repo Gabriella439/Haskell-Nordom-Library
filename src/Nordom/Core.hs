@@ -253,6 +253,10 @@ data Expr a
     | TextLast
     -- | > TextPack                        ~  #Text/pack
     | TextPack
+    -- | > TextSpan                        ~  #Text/span
+    | TextSpan
+    -- | > TextSplitAt                     ~  #Text/splitAt
+    | TextSplitAt
     -- | > TextUnpack                      ~  #Text/unpack
     | TextUnpack
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
@@ -309,6 +313,8 @@ instance Applicative Expr where
         TextHead          -> TextHead
         TextLast          -> TextLast
         TextPack          -> TextPack
+        TextSpan          -> TextSpan
+        TextSplitAt       -> TextSplitAt
         TextUnpack        -> TextUnpack
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
@@ -369,6 +375,8 @@ instance Monad Expr where
         TextHead          -> TextHead
         TextLast          -> TextLast
         TextPack          -> TextPack
+        TextSpan          -> TextSpan
+        TextSplitAt       -> TextSplitAt
         TextUnpack        -> TextUnpack
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
@@ -462,6 +470,8 @@ instance Eq a => Eq (Expr a) where
         go TextHead TextHead = return True
         go TextLast TextLast = return True
         go TextPack TextPack = return True
+        go TextSpan TextSpan = return True
+        go TextSplitAt TextSplitAt = return True
         go TextUnpack TextUnpack = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
@@ -568,6 +578,8 @@ instance Buildable a => Buildable (Expr a)
             TextHead          -> "#Text/head"
             TextLast          -> "#Text/last"
             TextPack          -> "#Text/pack"
+            TextSpan          -> "#Text/span"
+            TextSplitAt       -> "#Text/splitAt"
             TextUnpack        -> "#Text/unpack"
             PathLit cat ps o0 ->
                     "[id "
@@ -638,6 +650,8 @@ shift _ ! _       TextAppend         = TextAppend
 shift _ ! _       TextHead           = TextHead
 shift _ ! _       TextLast           = TextLast
 shift _ ! _       TextPack           = TextPack
+shift _ ! _       TextSpan           = TextSpan
+shift _ ! _       TextSplitAt        = TextSplitAt
 shift _ ! _       TextUnpack         = TextUnpack
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
@@ -725,6 +739,8 @@ subst ! _      _   TextAppend         = TextAppend
 subst ! _      _   TextHead           = TextHead
 subst ! _      _   TextLast           = TextLast
 subst ! _      _   TextPack           = TextPack
+subst ! _      _   TextSpan           = TextSpan
+subst ! _      _   TextSplitAt        = TextSplitAt
 subst ! _      _   TextUnpack         = TextUnpack
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
@@ -812,6 +828,8 @@ freeIn ! _       TextAppend         = False
 freeIn ! _       TextHead           = False
 freeIn ! _       TextLast           = False
 freeIn ! _       TextPack           = False
+freeIn ! _       TextSpan           = False
+freeIn ! _       TextSplitAt        = False
 freeIn ! _       TextUnpack         = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
@@ -1003,6 +1021,33 @@ normalize e = case e of
               where
                 isCharLit (CharLit _) = True
                 isCharLit  _          = False
+            App (App TextSpan predicate) (TextLit xs) ->
+                if Text.all extract xs
+                then
+                    Lam "Prod2" (Const Star)
+                        (Lam "Make"
+                            (Pi "_1" Text
+                                (Pi "_2" Text "Prod2") )
+                            (App (App "Make" (TextLit prefix))
+                                (TextLit suffix) ) )
+                else App f' a'
+              where
+                (prefix, suffix) = Text.span predicate' xs
+
+                extract x = y == Just True || y == Just False
+                  where
+                    y = decodeBool (normalize (App predicate (CharLit x)))
+
+                predicate' x =
+                        decodeBool (normalize (App predicate (CharLit x)))
+                    ==  Just True
+            App (App TextSplitAt (NatLit n)) (TextLit t) ->
+                Lam "Prod2" (Const Star)
+                    (Lam "Make"
+                        (Pi "_1" Text (Pi "_2" Text "Prod2"))
+                        (App (App "Make" (TextLit prefix)) (TextLit suffix)) )
+              where
+                (prefix, suffix) = Text.splitAt (fromIntegral n) t
             App TextUnpack (TextLit t) ->
                 ListLit Char (Vector.fromList (fmap CharLit (Text.unpack t)))
             _ -> App f' a'
@@ -1039,6 +1084,8 @@ normalize e = case e of
     TextHead          -> TextHead
     TextLast          -> TextLast
     TextPack          -> TextPack
+    TextSpan          -> TextSpan
+    TextSplitAt       -> TextSplitAt
     TextUnpack        -> TextUnpack
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
@@ -1063,6 +1110,11 @@ unsafeToChar  _          =
 
 bool :: Expr a
 bool = Pi "Bool" (Const Star) (Pi "True" "Bool" (Pi "False" "Bool" "Bool"))
+
+prod2 :: Expr a -> Expr a -> Expr a
+prod2 a b =
+    Pi "Prod2" (Const Star) (Pi "Make" (Pi "_" a (Pi "_" b "Prod2")) "Prod2")
+
 
 lookup :: Expr a -> Context b -> Maybe b
 lookup k c = case normalize k of
@@ -1197,10 +1249,8 @@ typeWith ctx e = case e of
         return
             (Pi "a" (Const Star)
                 (Pi "_" (App List "a")
-                    (App List p) ) )
+                    (App List (prod2 Nat "a")) ) )
       where
-        p = Pi "Prod2" (Const Star)
-                (Pi "Make" (Pi "_" Nat (Pi "_" "a" "Prod2")) "Prod2")
     ListJoin          ->
         return
             (Pi "a" (Const Star)
@@ -1229,21 +1279,13 @@ typeWith ctx e = case e of
             (Pi "a" (Const Star)
                 (Pi "_" (Pi "_" "a" bool)
                     (Pi "_" (App List "a")
-                        (Pi "Prod2" (Const Star)
-                            (Pi "Make"
-                                (Pi "_1" (App List "a")
-                                    (Pi "_2" (App List "a") "Prod2") )
-                                "Prod2" ) ) ) ) )
+                        (prod2 (App List "a") (App List "a")) ) ) )
     ListSplitAt       ->
         return
             (Pi "_" Nat
                 (Pi "a" (Const Star)
                     (Pi "_" (App List "a")
-                        (Pi "Prod2" (Const Star)
-                            (Pi "Make"
-                                (Pi "_1" (App List "a")
-                                    (Pi "_2" (App List "a") "Prod2") )
-                                "Prod2" ) ) ) ) )
+                        (prod2 (App List "a") (App List "a")) ) ) )
     Text              -> return (Const Star)
     TextLit _         -> return Text
     TextAppend        -> return (Pi "_" Text (Pi "_" Text Text))
@@ -1260,6 +1302,16 @@ typeWith ctx e = case e of
                     (Pi "Nothing" "Maybe"
                         (Pi "Just" (Pi "_" Char "Maybe") "Maybe") ) ) )
     TextPack          -> return (Pi "_" (App List Char) Text)
+    TextSpan          ->
+        return (Pi "_" (Pi "_" Char bool) (Pi "_" Text (prod2 Text Text)))
+    TextSplitAt       ->
+        return
+            (Pi "_" Nat
+                (Pi "_" Text
+                    (Pi "Prod2" (Const Star)
+                        (Pi "Make"
+                            (Pi "_1" Text (Pi "_2" Text "Prod2") )
+                            "Prod2" ) ) ) )
     TextUnpack        -> return (Pi "_" Text (App List Char))
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat
