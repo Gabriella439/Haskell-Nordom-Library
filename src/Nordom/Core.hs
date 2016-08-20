@@ -192,6 +192,10 @@ data Expr a
     | Pi  Text (Expr a) (Expr a)
     -- | > App f a                         ~  f a
     | App (Expr a) (Expr a)
+    -- | > Char                            ~  #Char
+    | Char
+    -- | > CharLit c                       ~  c
+    | CharLit Char
     -- | > NatLit  n                       ~  n
     | NatLit !Integer
     -- | > Nat                             ~  #Natural
@@ -240,6 +244,8 @@ data Expr a
     | Text
     -- | > TextLit t                       ~  t
     | TextLit Text
+    -- | > TextAppend                      ~  #Text/(++)
+    | TextAppend
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
     -- | > Path                            ~  #Path
@@ -260,6 +266,8 @@ instance Applicative Expr where
         Lam x _A  b       -> Lam x (_A <*> mx) ( b <*> mx)
         Pi  x _A _B       -> Pi  x (_A <*> mx) (_B <*> mx)
         App f a           -> App (f <*> mx) (a <*> mx)
+        Char              -> Char
+        CharLit c         -> CharLit c
         NatLit n          -> NatLit n
         Nat               -> Nat
         NatEq             -> NatEq
@@ -288,6 +296,7 @@ instance Applicative Expr where
         ListSplitAt       -> ListSplitAt
         Text              -> Text
         TextLit t         -> TextLit t
+        TextAppend        -> TextAppend
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
             ps' = do
@@ -313,6 +322,8 @@ instance Monad Expr where
         Lam x _A  b       -> Lam x (_A >>= k) ( b >>= k)
         Pi  x _A _B       -> Pi  x (_A >>= k) (_B >>= k)
         App f a           -> App (f >>= k) (a >>= k)
+        Char              -> Char
+        CharLit c         -> CharLit c
         NatLit n          -> NatLit n
         Nat               -> Nat
         NatEq             -> NatEq
@@ -341,6 +352,7 @@ instance Monad Expr where
         ListSplitAt       -> ListSplitAt
         Text              -> Text
         TextLit t         -> TextLit t
+        TextAppend        -> TextAppend
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
             ps' = do
@@ -396,6 +408,9 @@ instance Eq a => Eq (Expr a) where
         go (App fL aL) (App fR aR) = do
             b1 <- go fL fR
             if b1 then go aL aR else return False
+        go Char Char = return True
+        go (CharLit x) (CharLit y) = do
+            return (x == y)
         go (NatLit nL) (NatLit nR) = do
             return (nL == nR)
         go Nat Nat = return True
@@ -426,6 +441,7 @@ instance Eq a => Eq (Expr a) where
         go Text Text = return True
         go (TextLit x) (TextLit y) = do
             return (x == y)
+        go TextAppend TextAppend = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
             let loop ((oL, mL):ls) ((oR, mR):rs) = do
@@ -497,6 +513,8 @@ instance Buildable a => Buildable (Expr a)
                     (if parenApp then "(" else "")
                 <>  go True False f <> " " <> go True True a
                 <>  (if parenApp then ")" else "")
+            Char              -> "#Char"
+            CharLit c         -> build (show c)
             NatLit n          -> build n
             Nat               -> "#Natural"
             NatEq             -> "#Natural/(==)"
@@ -525,6 +543,7 @@ instance Buildable a => Buildable (Expr a)
             ListSplitAt       -> "#Vector/splitAt"
             Text              -> "#Text"
             TextLit t         -> build (show t)
+            TextAppend        -> "#Text/(++)"
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
@@ -561,6 +580,8 @@ shift d ! v      (App f a          ) = App f' a'
   where
     f' = shift d v f
     a' = shift d v a
+shift _ ! _       Char               = Char
+shift _ ! _      (CharLit c        ) = CharLit c
 shift _ ! _      (NatLit n         ) = NatLit n
 shift _ ! _       Nat                = Nat
 shift _ ! _       NatEq              = NatEq
@@ -588,6 +609,7 @@ shift _ ! _       ListSpan           = ListSpan
 shift _ ! _       ListSplitAt        = ListSplitAt
 shift _ ! _       Text               = Text
 shift _ ! _      (TextLit t        ) = TextLit t
+shift _ ! _       TextAppend         = TextAppend
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = shift d v cat
@@ -641,6 +663,8 @@ subst ! v      e  (App f a          ) = App f' a'
   where
     f' = subst v e f
     a' = subst v e a
+subst ! _      _   Char               = Char
+subst ! _      _  (CharLit c        ) = CharLit c
 subst ! _      _  (NatLit n         ) = NatLit n
 subst ! _      _   Nat                = Nat
 subst ! _      _   NatEq              = NatEq
@@ -668,6 +692,7 @@ subst ! _      _   ListSpan           = ListSpan
 subst ! _      _   ListSplitAt        = ListSplitAt
 subst ! _      _   Text               = Text
 subst ! _      _  (TextLit t        ) = TextLit t
+subst ! _      _   TextAppend         = TextAppend
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = subst v e cat
@@ -724,6 +749,8 @@ freeIn !(V x n) (Pi  x' _A _B     ) = freeIn (V x n) _A || freeIn (V x n') _B
     n' = if x == x' then n + 1 else n
 freeIn ! v      (App f a          ) = freeIn v f || freeIn v a
 -- The Nordom compiler enforces that all embedded values are closed expressions
+freeIn ! _       Char               = False
+freeIn ! _      (CharLit _        ) = False
 freeIn ! _      (NatLit _         ) = False
 freeIn ! _       Nat                = False
 freeIn ! _       NatEq              = False
@@ -748,6 +775,7 @@ freeIn ! _       ListSpan           = False
 freeIn ! _       ListSplitAt        = False
 freeIn ! _       Text               = False
 freeIn ! _      (TextLit _        ) = False
+freeIn ! _       TextAppend         = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
     f (o, m) = freeIn v o || freeIn v m
@@ -912,10 +940,14 @@ normalize e = case e of
 
                 predicate' x =
                     decodeBool (normalize (App predicate x)) == Just True
+            App (App TextAppend (TextLit x)) (TextLit y) ->
+                TextLit (x <> y)
             _ -> App f' a'
       where
         f' = normalize f
         a' = normalize a
+    Char              -> Char
+    CharLit c         -> c `seq` CharLit c
     NatLit n          -> n `seq` NatLit n
     Nat               -> Nat
     NatEq             -> NatEq
@@ -939,7 +971,8 @@ normalize e = case e of
     ListSpan          -> ListSpan
     ListSplitAt       -> ListSplitAt
     Text              -> Text
-    TextLit t         -> TextLit t
+    TextLit t         -> t `seq` TextLit t
+    TextAppend        -> TextAppend
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
         ps' = do
@@ -1036,6 +1069,8 @@ typeWith ctx e = case e of
                 let nf_A  = normalize _A
                 let nf_A' = normalize _A'
                 Left (TypeError ctx e (TypeMismatch nf_A nf_A'))
+    Char              -> return (Const Star)
+    CharLit _         -> return Char
     NatLit _          -> return Nat
     Nat               -> return (Const Star)
     NatEq             -> return (Pi "_" Nat (Pi "_" Nat bool))
@@ -1139,6 +1174,7 @@ typeWith ctx e = case e of
                                 "Prod2" ) ) ) ) )
     Text              -> return (Const Star)
     TextLit _         -> return Text
+    TextAppend        -> return (Pi "_" Text (Pi "_" Text Text))
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat
         if k == Pi "_" (Const Star) (Pi "_" (Const Star) (Const Star))

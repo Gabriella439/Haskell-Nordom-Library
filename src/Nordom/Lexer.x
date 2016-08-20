@@ -48,7 +48,8 @@ tokens :-
                                         line   += 1
                                         column .= 0 )                          }
     "--".*                          ;
-    \" ([^\"] | \\.)* \"            { \text -> yield (TextLit (lit text))      }
+    \" ([^\"] | \\.)* \"            { \text -> yield (TextLit (textLit text))  }
+    \' ([^\'] | \\.)  \'            { \text -> yield (CharLit (charLit text))  }
     "("                             { \_    -> yield OpenParen                 }
     ")"                             { \_    -> yield CloseParen                }
     "{"                             { \_    -> yield OpenBrace                 }
@@ -69,6 +70,7 @@ tokens :-
     "="                             { \_    -> yield Equals                    }
     "in"                            { \_    -> yield In                        }
     "do"                            { \_    -> yield Do                        }
+    "#Char"                         { \_    -> yield Char                      }
     "#Natural"                      { \_    -> yield Nat                       }
     "#Vector"                       { \_    -> yield List                      }
     "#Cmd"                          { \_    -> yield Cmd                       }
@@ -79,6 +81,7 @@ tokens :-
     "#Natural/(+)"                  { \_    -> yield NatPlus                   }
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
     "#Text"                         { \_    -> yield Text                      }
+    "#Text/(++)"                    { \_    -> yield TextAppend                }
     "#Vector/(++)"                  { \_    -> yield ListAppend                }
     "#Vector/(==)"                  { \_    -> yield ListEq                    }
     "#Vector/foldr"                 { \_    -> yield ListFold                  }
@@ -110,8 +113,11 @@ toFile n = fromText . Text.toStrict . Text.drop n
 trim :: Text -> Text
 trim = Text.init . Text.tail
 
-lit :: Text -> Text
-lit = read . Text.unpack
+textLit :: Text -> Text
+textLit = read . Text.unpack
+
+charLit :: Text -> Char
+charLit = read . Text.unpack
 
 -- This was lifted almost intact from the @alex@ source code
 encode :: Char -> (Word8, [Word8])
@@ -225,6 +231,8 @@ data Token
     | Equals
     | In
     | Do
+    | Char
+    | CharLit Char
     | Nat
     | NatEq
     | NatFold
@@ -247,6 +255,7 @@ data Token
     | ListSplitAt
     | Text
     | TextLit Text
+    | TextAppend
     | Cmd
     | Path
     | Label Text

@@ -64,6 +64,14 @@ text = fmap unsafeFromTextLit (satisfy isTextLit)
 
     unsafeFromTextLit (LocatedToken (Lexer.TextLit n) _) = n
 
+char :: Prod r e LocatedToken Char
+char = fmap unsafeFromCharLit (satisfy isCharLit)
+  where
+    isCharLit (LocatedToken (Lexer.CharLit _) _) = True
+    isCharLit  _                                 = False
+
+    unsafeFromCharLit (LocatedToken (Lexer.CharLit c) _) = c
+
 file :: Prod r e LocatedToken FilePath
 file = fmap unsafeFromFile (satisfy isFile)
   where
@@ -118,6 +126,7 @@ expr = mdo
         <|> Embed <$> embed
         <|> (NatLit . fromIntegral) <$> number
         <|> TextLit <$> text
+        <|> CharLit <$> char
         <|>     ListLit
             <$> (match Lexer.OpenList *> expr)
             <*> (fmap Vector.fromList (many (match Lexer.Comma *> expr)) <* match Lexer.CloseBracket)
@@ -129,6 +138,7 @@ expr = mdo
             <$> (match Lexer.Do *> expr)
             <*> (match Lexer.OpenBrace *> many bind)
             <*> (bind <* match Lexer.CloseBrace)
+        <|> match Lexer.Char          *> pure Char
         <|> match Lexer.Nat           *> pure Nat
         <|> match Lexer.NatEq         *> pure NatEq
         <|> match Lexer.NatFold       *> pure NatFold
@@ -150,6 +160,7 @@ expr = mdo
         <|> match Lexer.ListSpan      *> pure ListSpan
         <|> match Lexer.ListSplitAt   *> pure ListSplitAt
         <|> match Lexer.Text          *> pure Text
+        <|> match Lexer.TextAppend    *> pure TextAppend
         <|> match Lexer.Cmd           *> pure Cmd
         <|> match Lexer.Path          *> pure Path
         <|> (match Lexer.OpenParen *> expr <* match Lexer.CloseParen)
