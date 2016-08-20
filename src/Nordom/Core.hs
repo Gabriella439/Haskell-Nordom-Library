@@ -255,6 +255,8 @@ data Expr a
     | TextLast
     -- | > TextLength                      ~  #Text/length
     | TextLength
+    -- | > TextMap                         ~  #Text/map
+    | TextMap
     -- | > TextPack                        ~  #Text/pack
     | TextPack
     -- | > TextSpan                        ~  #Text/span
@@ -318,6 +320,7 @@ instance Applicative Expr where
         TextHead          -> TextHead
         TextLast          -> TextLast
         TextLength        -> TextLength
+        TextMap           -> TextMap
         TextPack          -> TextPack
         TextSpan          -> TextSpan
         TextSplitAt       -> TextSplitAt
@@ -382,6 +385,7 @@ instance Monad Expr where
         TextHead          -> TextHead
         TextLast          -> TextLast
         TextLength        -> TextLength
+        TextMap           -> TextMap
         TextPack          -> TextPack
         TextSpan          -> TextSpan
         TextSplitAt       -> TextSplitAt
@@ -479,6 +483,7 @@ instance Eq a => Eq (Expr a) where
         go TextHead TextHead = return True
         go TextLast TextLast = return True
         go TextLength TextLength = return True
+        go TextMap TextMap = return True
         go TextPack TextPack = return True
         go TextSpan TextSpan = return True
         go TextSplitAt TextSplitAt = return True
@@ -589,6 +594,7 @@ instance Buildable a => Buildable (Expr a)
             TextHead          -> "#Text/head"
             TextLast          -> "#Text/last"
             TextLength        -> "#Text/length"
+            TextMap           -> "#Text/map"
             TextPack          -> "#Text/pack"
             TextSpan          -> "#Text/span"
             TextSplitAt       -> "#Text/splitAt"
@@ -663,6 +669,7 @@ shift _ ! _       TextAppend         = TextAppend
 shift _ ! _       TextHead           = TextHead
 shift _ ! _       TextLast           = TextLast
 shift _ ! _       TextLength         = TextLength
+shift _ ! _       TextMap            = TextMap
 shift _ ! _       TextPack           = TextPack
 shift _ ! _       TextSpan           = TextSpan
 shift _ ! _       TextSplitAt        = TextSplitAt
@@ -754,6 +761,7 @@ subst ! _      _   TextAppend         = TextAppend
 subst ! _      _   TextHead           = TextHead
 subst ! _      _   TextLast           = TextLast
 subst ! _      _   TextLength         = TextLength
+subst ! _      _   TextMap            = TextMap
 subst ! _      _   TextPack           = TextPack
 subst ! _      _   TextSpan           = TextSpan
 subst ! _      _   TextSplitAt        = TextSplitAt
@@ -845,6 +853,7 @@ freeIn ! _       TextAppend         = False
 freeIn ! _       TextHead           = False
 freeIn ! _       TextLast           = False
 freeIn ! _       TextLength         = False
+freeIn ! _       TextMap            = False
 freeIn ! _       TextPack           = False
 freeIn ! _       TextSpan           = False
 freeIn ! _       TextSplitAt        = False
@@ -1040,6 +1049,15 @@ normalize e = case e of
                    else App "Just" (CharLit (Text.last x))
             App TextLength (TextLit x) ->
                 NatLit (fromIntegral (Text.length x))
+            App (App TextMap k) (TextLit t)
+                | Text.all extract t ->
+                    TextLit (Text.map k' t)
+              where
+                extract c = case normalize (App k (CharLit c)) of
+                    CharLit _ -> True
+                    _         -> False
+
+                k' c = unsafeToChar (normalize (App k (CharLit c)))
             App TextPack (ListLit _ cs)
                 | Vector.all isCharLit cs ->
                     TextLit (Text.pack (toList (fmap unsafeToChar cs)))
@@ -1110,6 +1128,7 @@ normalize e = case e of
     TextHead          -> TextHead
     TextLast          -> TextLast
     TextLength        -> TextLength
+    TextMap           -> TextMap
     TextPack          -> TextPack
     TextSpan          -> TextSpan
     TextSplitAt       -> TextSplitAt
@@ -1335,6 +1354,7 @@ typeWith ctx e = case e of
                     (Pi "Nothing" "Maybe"
                         (Pi "Just" (Pi "_" Char "Maybe") "Maybe") ) ) )
     TextLength        -> return (Pi "_" Text Nat)
+    TextMap           -> return (Pi "_" (Pi "_" Char Char) (Pi "_" Text Text))
     TextPack          -> return (Pi "_" (App List Char) Text)
     TextSpan          ->
         return (Pi "_" (Pi "_" Char bool) (Pi "_" Text (prod2 Text Text)))

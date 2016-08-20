@@ -86,6 +86,7 @@ tokens :-
     "#Text/head"                    { \_    -> yield TextHead                  }
     "#Text/last"                    { \_    -> yield TextLast                  }
     "#Text/length"                  { \_    -> yield TextLength                }
+    "#Text/map"                     { \_    -> yield TextMap                   }
     "#Text/pack"                    { \_    -> yield TextPack                  }
     "#Text/span"                    { \_    -> yield TextSpan                  }
     "#Text/splitAt"                 { \_    -> yield TextSplitAt               }
@@ -268,6 +269,7 @@ data Token
     | TextHead
     | TextLast
     | TextLength
+    | TextMap
     | TextPack
     | TextSpan
     | TextSplitAt
