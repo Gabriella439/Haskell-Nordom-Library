@@ -236,6 +236,10 @@ data Expr a
     | ListSpan
     -- | > ListSplitAt                     ~  #Vector/splitAt
     | ListSplitAt
+    -- | > Text                            ~  #Text
+    | Text
+    -- | > TextLit t                       ~  t
+    | TextLit Text
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
     -- | > Path                            ~  #Path
@@ -282,6 +286,8 @@ instance Applicative Expr where
         ListReverse       -> ListReverse
         ListSpan          -> ListSpan
         ListSplitAt       -> ListSplitAt
+        Text              -> Text
+        TextLit t         -> TextLit t
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
             ps' = do
@@ -333,6 +339,8 @@ instance Monad Expr where
         ListReverse       -> ListReverse
         ListSpan          -> ListSpan
         ListSplitAt       -> ListSplitAt
+        Text              -> Text
+        TextLit t         -> TextLit t
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
             ps' = do
@@ -415,6 +423,9 @@ instance Eq a => Eq (Expr a) where
         go ListReverse ListReverse = return True
         go ListSpan ListSpan = return True
         go ListSplitAt ListSplitAt = return True
+        go Text Text = return True
+        go (TextLit x) (TextLit y) = do
+            return (x == y)
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
             let loop ((oL, mL):ls) ((oR, mR):rs) = do
@@ -512,6 +523,8 @@ instance Buildable a => Buildable (Expr a)
             ListReverse       -> "#Vector/reverse"
             ListSpan          -> "#Vector/span"
             ListSplitAt       -> "#Vector/splitAt"
+            Text              -> "#Text"
+            TextLit t         -> build (show t)
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
@@ -573,6 +586,8 @@ shift _ ! _       ListReplicate      = ListReplicate
 shift _ ! _       ListReverse        = ListReverse
 shift _ ! _       ListSpan           = ListSpan
 shift _ ! _       ListSplitAt        = ListSplitAt
+shift _ ! _       Text               = Text
+shift _ ! _      (TextLit t        ) = TextLit t
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = shift d v cat
@@ -651,6 +666,8 @@ subst ! _      _   ListReplicate      = ListReplicate
 subst ! _      _   ListReverse        = ListReverse
 subst ! _      _   ListSpan           = ListSpan
 subst ! _      _   ListSplitAt        = ListSplitAt
+subst ! _      _   Text               = Text
+subst ! _      _  (TextLit t        ) = TextLit t
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = subst v e cat
@@ -729,6 +746,8 @@ freeIn ! _       ListReplicate      = False
 freeIn ! _       ListReverse        = False
 freeIn ! _       ListSpan           = False
 freeIn ! _       ListSplitAt        = False
+freeIn ! _       Text               = False
+freeIn ! _      (TextLit _        ) = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
     f (o, m) = freeIn v o || freeIn v m
@@ -919,6 +938,8 @@ normalize e = case e of
     ListReverse       -> ListReverse
     ListSpan          -> ListSpan
     ListSplitAt       -> ListSplitAt
+    Text              -> Text
+    TextLit t         -> TextLit t
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
         ps' = do
@@ -1116,6 +1137,8 @@ typeWith ctx e = case e of
                                 (Pi "_1" (App List "a")
                                     (Pi "_2" (App List "a") "Prod2") )
                                 "Prod2" ) ) ) ) )
+    Text              -> return (Const Star)
+    TextLit _         -> return Text
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat
         if k == Pi "_" (Const Star) (Pi "_" (Const Star) (Const Star))

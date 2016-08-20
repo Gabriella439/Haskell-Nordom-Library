@@ -48,6 +48,7 @@ tokens :-
                                         line   += 1
                                         column .= 0 )                          }
     "--".*                          ;
+    \" ([^\"] | \\.)* \"            { \text -> yield (TextLit (lit text))      }
     "("                             { \_    -> yield OpenParen                 }
     ")"                             { \_    -> yield CloseParen                }
     "{"                             { \_    -> yield OpenBrace                 }
@@ -77,6 +78,7 @@ tokens :-
     "#Natural/(<=)"                 { \_    -> yield NatLessEq                 }
     "#Natural/(+)"                  { \_    -> yield NatPlus                   }
     "#Natural/(*)"                  { \_    -> yield NatTimes                  }
+    "#Text"                         { \_    -> yield Text                      }
     "#Vector/(++)"                  { \_    -> yield ListAppend                }
     "#Vector/(==)"                  { \_    -> yield ListEq                    }
     "#Vector/foldr"                 { \_    -> yield ListFold                  }
@@ -107,6 +109,9 @@ toFile n = fromText . Text.toStrict . Text.drop n
 
 trim :: Text -> Text
 trim = Text.init . Text.tail
+
+lit :: Text -> Text
+lit = read . Text.unpack
 
 -- This was lifted almost intact from the @alex@ source code
 encode :: Char -> (Word8, [Word8])
@@ -240,6 +245,8 @@ data Token
     | ListReverse
     | ListSpan
     | ListSplitAt
+    | Text
+    | TextLit Text
     | Cmd
     | Path
     | Label Text
