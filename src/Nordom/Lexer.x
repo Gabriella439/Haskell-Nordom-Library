@@ -84,6 +84,8 @@ tokens :-
     "#Text/(++)"                    { \_    -> yield TextAppend                }
     "#Text/head"                    { \_    -> yield TextHead                  }
     "#Text/last"                    { \_    -> yield TextLast                  }
+    "#Text/pack"                    { \_    -> yield TextPack                  }
+    "#Text/unpack"                  { \_    -> yield TextUnpack                }
     "#Vector/(++)"                  { \_    -> yield ListAppend                }
     "#Vector/(==)"                  { \_    -> yield ListEq                    }
     "#Vector/foldr"                 { \_    -> yield ListFold                  }
@@ -260,6 +262,8 @@ data Token
     | TextAppend
     | TextHead
     | TextLast
+    | TextPack
+    | TextUnpack
     | Cmd
     | Path
     | Label Text

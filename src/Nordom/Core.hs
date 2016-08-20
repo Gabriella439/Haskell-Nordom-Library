@@ -36,6 +36,7 @@ module Nordom.Core (
 import Control.Applicative (pure, empty)
 import Control.Exception (Exception)
 import Control.Monad (join)
+import Data.Foldable (toList)
 import Data.Monoid ((<>))
 import Data.String (IsString(..))
 import Data.Text.Buildable (Buildable(..))
@@ -250,6 +251,10 @@ data Expr a
     | TextHead
     -- | > TextLast                        ~  #Text/last
     | TextLast
+    -- | > TextPack                        ~  #Text/pack
+    | TextPack
+    -- | > TextUnpack                      ~  #Text/unpack
+    | TextUnpack
     -- | > PathLit c [(o1, m1), (o2, m2)] o3  ~  [id c {o1} m1 {o2} m2 {o3}]
     | PathLit (Expr a) [(Expr a, Expr a)] (Expr a)
     -- | > Path                            ~  #Path
@@ -303,6 +308,8 @@ instance Applicative Expr where
         TextAppend        -> TextAppend
         TextHead          -> TextHead
         TextLast          -> TextLast
+        TextPack          -> TextPack
+        TextUnpack        -> TextUnpack
         PathLit cat ps o0 -> PathLit (cat <*> mx) ps' (o0 <*> mx)
           where
             ps' = do
@@ -361,6 +368,8 @@ instance Monad Expr where
         TextAppend        -> TextAppend
         TextHead          -> TextHead
         TextLast          -> TextLast
+        TextPack          -> TextPack
+        TextUnpack        -> TextUnpack
         PathLit cat ps o0 -> PathLit (cat >>= k) ps' (o0 >>= k)
           where
             ps' = do
@@ -452,6 +461,8 @@ instance Eq a => Eq (Expr a) where
         go TextAppend TextAppend = return True
         go TextHead TextHead = return True
         go TextLast TextLast = return True
+        go TextPack TextPack = return True
+        go TextUnpack TextUnpack = return True
         go (PathLit catL psL o0L) (PathLit catR psR o0R) = do
             b1 <- go catL catR
             let loop ((oL, mL):ls) ((oR, mR):rs) = do
@@ -556,6 +567,8 @@ instance Buildable a => Buildable (Expr a)
             TextAppend        -> "#Text/(++)"
             TextHead          -> "#Text/head"
             TextLast          -> "#Text/last"
+            TextPack          -> "#Text/pack"
+            TextUnpack        -> "#Text/unpack"
             PathLit cat ps o0 ->
                     "[id "
                 <>  build cat <> " "
@@ -624,6 +637,8 @@ shift _ ! _      (TextLit t        ) = TextLit t
 shift _ ! _       TextAppend         = TextAppend
 shift _ ! _       TextHead           = TextHead
 shift _ ! _       TextLast           = TextLast
+shift _ ! _       TextPack           = TextPack
+shift _ ! _       TextUnpack         = TextUnpack
 shift d ! v      (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = shift d v cat
@@ -709,6 +724,8 @@ subst ! _      _  (TextLit t        ) = TextLit t
 subst ! _      _   TextAppend         = TextAppend
 subst ! _      _   TextHead           = TextHead
 subst ! _      _   TextLast           = TextLast
+subst ! _      _   TextPack           = TextPack
+subst ! _      _   TextUnpack         = TextUnpack
 subst ! v      e  (PathLit cat ps o0) = PathLit cat' ps' o0'
   where
     cat' = subst v e cat
@@ -794,6 +811,8 @@ freeIn ! _      (TextLit _        ) = False
 freeIn ! _       TextAppend         = False
 freeIn ! _       TextHead           = False
 freeIn ! _       TextLast           = False
+freeIn ! _       TextPack           = False
+freeIn ! _       TextUnpack         = False
 freeIn ! v      (PathLit cat ps o0) = freeIn v cat || any f ps || freeIn v o0
   where
     f (o, m) = freeIn v o || freeIn v m
@@ -978,6 +997,14 @@ normalize e = case e of
                    if Text.null x
                    then "Nothing"
                    else App "Just" (CharLit (Text.last x))
+            App TextPack (ListLit _ cs)
+                | Vector.all isCharLit cs ->
+                    TextLit (Text.pack (toList (fmap unsafeToChar cs)))
+              where
+                isCharLit (CharLit _) = True
+                isCharLit  _          = False
+            App TextUnpack (TextLit t) ->
+                ListLit Char (Vector.fromList (fmap CharLit (Text.unpack t)))
             _ -> App f' a'
       where
         f' = normalize f
@@ -1011,6 +1038,8 @@ normalize e = case e of
     TextAppend        -> TextAppend
     TextHead          -> TextHead
     TextLast          -> TextLast
+    TextPack          -> TextPack
+    TextUnpack        -> TextUnpack
     PathLit cat ps o0 -> PathLit (normalize cat) ps' (normalize o0)
       where
         ps' = do
@@ -1026,6 +1055,11 @@ normalize e = case e of
         b0' = Bind (Arg x0 (normalize _A0)) (normalize r0)
     Cmd               -> Cmd
     Embed p           -> Embed p
+
+unsafeToChar :: Expr a -> Char
+unsafeToChar (CharLit c) = c
+unsafeToChar  _          =
+    error "unsafeToChar: Argument was not a `CharLit`"
 
 bool :: Expr a
 bool = Pi "Bool" (Const Star) (Pi "True" "Bool" (Pi "False" "Bool" "Bool"))
@@ -1225,6 +1259,8 @@ typeWith ctx e = case e of
                 (Pi "Maybe" (Const Star)
                     (Pi "Nothing" "Maybe"
                         (Pi "Just" (Pi "_" Char "Maybe") "Maybe") ) ) )
+    TextPack          -> return (Pi "_" (App List Char) Text)
+    TextUnpack        -> return (Pi "_" Text (App List Char))
     PathLit cat ps o0 -> do
         k <- typeWith ctx cat
         if k == Pi "_" (Const Star) (Pi "_" (Const Star) (Const Star))
