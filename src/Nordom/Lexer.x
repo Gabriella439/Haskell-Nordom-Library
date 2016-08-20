@@ -89,6 +89,7 @@ tokens :-
     "#Text/length"                  { \_    -> yield TextLength                }
     "#Text/map"                     { \_    -> yield TextMap                   }
     "#Text/pack"                    { \_    -> yield TextPack                  }
+    "#Text/reverse"                 { \_    -> yield TextReverse               }
     "#Text/span"                    { \_    -> yield TextSpan                  }
     "#Text/splitAt"                 { \_    -> yield TextSplitAt               }
     "#Text/unpack"                  { \_    -> yield TextUnpack                }
@@ -273,6 +274,7 @@ data Token
     | TextLength
     | TextMap
     | TextPack
+    | TextReverse
     | TextSpan
     | TextSplitAt
     | TextUnpack

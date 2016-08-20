@@ -168,6 +168,7 @@ expr = mdo
         <|> match Lexer.TextLength    *> pure TextLength
         <|> match Lexer.TextMap       *> pure TextMap
         <|> match Lexer.TextPack      *> pure TextPack
+        <|> match Lexer.TextReverse   *> pure TextReverse
         <|> match Lexer.TextSpan      *> pure TextSpan
         <|> match Lexer.TextSplitAt   *> pure TextSplitAt
         <|> match Lexer.TextUnpack    *> pure TextUnpack

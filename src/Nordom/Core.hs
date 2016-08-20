@@ -261,6 +261,8 @@ data Expr a
     | TextMap
     -- | > TextPack                        ~  #Text/pack
     | TextPack
+    -- | > TextReverse                     ~  #Text/reverse
+    | TextReverse
     -- | > TextSpan                        ~  #Text/span
     | TextSpan
     -- | > TextSplitAt                     ~  #Text/splitAt
@@ -325,6 +327,7 @@ instance Applicative Expr where
         TextLength        -> TextLength
         TextMap           -> TextMap
         TextPack          -> TextPack
+        TextReverse       -> TextReverse
         TextSpan          -> TextSpan
         TextSplitAt       -> TextSplitAt
         TextUnpack        -> TextUnpack
@@ -391,6 +394,7 @@ instance Monad Expr where
         TextLength        -> TextLength
         TextMap           -> TextMap
         TextPack          -> TextPack
+        TextReverse       -> TextReverse
         TextSpan          -> TextSpan
         TextSplitAt       -> TextSplitAt
         TextUnpack        -> TextUnpack
@@ -490,6 +494,7 @@ instance Eq a => Eq (Expr a) where
         go TextLength TextLength = return True
         go TextMap TextMap = return True
         go TextPack TextPack = return True
+        go TextReverse TextReverse = return True
         go TextSpan TextSpan = return True
         go TextSplitAt TextSplitAt = return True
         go TextUnpack TextUnpack = return True
@@ -602,6 +607,7 @@ instance Buildable a => Buildable (Expr a)
             TextLength        -> "#Text/length"
             TextMap           -> "#Text/map"
             TextPack          -> "#Text/pack"
+            TextReverse       -> "#Text/reverse"
             TextSpan          -> "#Text/span"
             TextSplitAt       -> "#Text/splitAt"
             TextUnpack        -> "#Text/unpack"
@@ -678,6 +684,7 @@ shift _ ! _       TextLast           = TextLast
 shift _ ! _       TextLength         = TextLength
 shift _ ! _       TextMap            = TextMap
 shift _ ! _       TextPack           = TextPack
+shift _ ! _       TextReverse        = TextReverse
 shift _ ! _       TextSpan           = TextSpan
 shift _ ! _       TextSplitAt        = TextSplitAt
 shift _ ! _       TextUnpack         = TextUnpack
@@ -771,6 +778,7 @@ subst ! _      _   TextLast           = TextLast
 subst ! _      _   TextLength         = TextLength
 subst ! _      _   TextMap            = TextMap
 subst ! _      _   TextPack           = TextPack
+subst ! _      _   TextReverse        = TextReverse
 subst ! _      _   TextSpan           = TextSpan
 subst ! _      _   TextSplitAt        = TextSplitAt
 subst ! _      _   TextUnpack         = TextUnpack
@@ -864,6 +872,7 @@ freeIn ! _       TextLast           = False
 freeIn ! _       TextLength         = False
 freeIn ! _       TextMap            = False
 freeIn ! _       TextPack           = False
+freeIn ! _       TextReverse        = False
 freeIn ! _       TextSpan           = False
 freeIn ! _       TextSplitAt        = False
 freeIn ! _       TextUnpack         = False
@@ -1083,6 +1092,8 @@ normalize e = case e of
               where
                 isCharLit (CharLit _) = True
                 isCharLit  _          = False
+            App TextReverse (TextLit x) ->
+                TextLit (Text.reverse x)
             App (App TextSpan predicate) (TextLit xs) ->
                 if Text.all extract xs
                 then
@@ -1150,6 +1161,7 @@ normalize e = case e of
     TextLength        -> TextLength
     TextMap           -> TextMap
     TextPack          -> TextPack
+    TextReverse       -> TextReverse
     TextSpan          -> TextSpan
     TextSplitAt       -> TextSplitAt
     TextUnpack        -> TextUnpack
@@ -1382,6 +1394,7 @@ typeWith ctx e = case e of
     TextLength        -> return (Pi "_" Text Nat)
     TextMap           -> return (Pi "_" (Pi "_" Char Char) (Pi "_" Text Text))
     TextPack          -> return (Pi "_" (App List Char) Text)
+    TextReverse       -> return (Pi "_" Text Text)
     TextSpan          ->
         return (Pi "_" (Pi "_" Char bool) (Pi "_" Text (prod2 Text Text)))
     TextSplitAt       ->
